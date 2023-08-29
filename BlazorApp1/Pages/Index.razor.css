@@ -1,0 +1,30 @@
+﻿.main-div {
+    background: #333333;
+    
+}
+
+.puzzle-pieces-svg {
+    fill: rgb(255, 255, 255,0.3);
+    height: 80%;
+    max-height: 800px;
+    width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+}
+
+.puzzle-closed {
+    fill: rgb(255, 255, 255,0.3);
+}
+
+
+.puzzle-closed:hover {
+    fill: #ff7054;
+}
+
+.puzzle-open{
+    fill: whitesmoke;
+}
+.puzzle-open:hover {
+    fill: #99eb6b;
+}

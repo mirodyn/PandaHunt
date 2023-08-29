@@ -1,0 +1,125 @@
+﻿.closed {
+    color: #da3225;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    text-align: center;
+    margin-bottom: auto;
+    margin-top: auto;
+    font-weight: bold;
+}
+
+#lock {
+    fill: #da3225;
+    margin: 20px;
+    max-height: 500px;
+}
+.solved {
+    display: flex;
+    flex-direction: column;
+    font-size: 3rem;
+    font-weight: bold;
+    align-items: center;
+    color: greenyellow;
+}
+
+.checkmark {
+    margin: 40px;
+    max-height: 200px;
+    fill: greenyellow;
+}
+.btn-primary {
+    background: whitesmoke;
+    color: black;
+    font-weight: bold;
+    border-color: whitesmoke;
+    width: 20.25rem;
+}
+.opened {
+    color: #da3225;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    text-align: center;
+    margin-bottom: auto;
+    margin-top: auto;
+    font-weight: bold;
+}
+
+.board {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 20.25rem;
+    margin: 0 auto;
+}
+
+.board-char{
+    width: 3rem;
+    height: 3rem;
+    font-weight: bold;
+    color: black;
+    font-size:2rem;
+    margin: 3px;
+    background: black;
+    padding:3px;
+    border-radius: 0.5rem;
+    text-align:center;;
+}
+.group-red{
+    background: red;
+}
+.group-blue {
+    background: blue;
+    color: white;
+}
+.group-green {
+    background: green;
+}
+.group-yellow {
+    background: yellow;
+}
+.group-purple {
+    background: purple;
+    color: white;
+}
+.group-black {
+    background: black;
+    color: white;
+}
+
+.group-white {
+    background: white;
+    color: black;
+}
+
+.group-orange {
+    background-color:  darkorange;
+    color: black;
+}
+
+.group-pink {
+    background-color: hotpink;
+    color: black;
+}
+
+.group-brown {
+    background-color: saddlebrown;
+    color: white;
+}
+.group-aquamarine {
+    background-color: aquamarine;
+    color: black;
+}
+
+.form-btn {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.wrong-answer {
+    color: #da3225;
+}
+

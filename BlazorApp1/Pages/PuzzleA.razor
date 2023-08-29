@@ -1,0 +1,332 @@
+﻿@page "/puzzleA"
+@using Microsoft.AspNetCore.Mvc;
+@using System.Reflection;
+@using PandaHunt.Data;
+@inject PuzzleTimers timers
+@inject IJSRuntime JSRuntime
+
+@if (timers.PuzzleAOpened)
+{
+
+    <div class="opened">
+        @if (!Solved)
+        {   <div class="board-wrapper">
+                <div class="board">
+
+                    @foreach(string ch in alphabetList)
+                    {
+                        if (Board.ContainsKey(ch))
+                        {
+                            <div class="board-char group-@BoardColors[Board[ch]]">  @ch </div>
+                            rowCounter++;
+                        }
+                        if (rowCounter == 5)
+                        {
+                            rowCounter = 0;
+                            <br/>
+                        }
+                    }
+                </div>
+            <br/>
+            <br/>
+            <br/>
+
+
+            <EditForm Model="@this" OnSubmit="@CheckAnswer">
+                <InputNumber  class="input-number" @bind-Value="Answer" />
+                <br/>
+                <button class="btn btn-primary form-btn" type="submit">Odeslat odpověď</button>
+            </EditForm>
+            @if (WrongAnswer)
+            {
+                <h2 class="wrong-answer">@WrongAnswerMessage</h2>
+            }
+            </div>
+        }
+        else
+        {
+            <div class="solved">
+                <svg class="checkmark" viewBox="0 0 24 24"><path d="M12 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm0-2c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.393 7.5l-5.643 5.784-2.644-2.506-1.856 1.858 4.5 4.364 7.5-7.643-1.857-1.857z" /></svg>
+                <br/>
+                <span>Správně!</span>
+                <br/>
+                <button class="btn btn-primary" @onclick="DownloadPuzzle">Stáhnout dílek</button>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="closed">
+        <svg id="lock" viewBox="0 0 330 330">
+            <g id="XMLID_509_">
+                <path id="XMLID_510_" d="M65,330h200c8.284,0,15-6.716,15-15V145c0-8.284-6.716-15-15-15h-15V85c0-46.869-38.131-85-85-85
+		S80,38.131,80,85v45H65c-8.284,0-15,6.716-15,15v170C50,323.284,56.716,330,65,330z M180,234.986V255c0,8.284-6.716,15-15,15
+		s-15-6.716-15-15v-20.014c-6.068-4.565-10-11.824-10-19.986c0-13.785,11.215-25,25-25s25,11.215,25,25
+		C190,223.162,186.068,230.421,180,234.986z M110,85c0-30.327,24.673-55,55-55s55,24.673,55,55v45H110V85z" />
+            </g>
+        </svg>
+        <h3>Puzzle A bude odemčen za: </h3>
+
+        <h1>@Time</h1>
+    </div>
+
+}
+
+@code {
+    private bool Solved = false;
+    private string Time = "";
+    private static System.Timers.Timer aTimer;
+    private int counter = 60;
+
+    //initialization
+
+    //private bool puzzleIntialized = false;
+    //protected override void OnInitialized()
+    //{
+    //    if(!puzzleIntialized) PreparePuzzle();
+    //    puzzleIntialized = true;
+    //}
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && !timers.PuzzleAOpened) StartTimer();
+        if (firstRender && timers.PuzzleAOpened) PreparePuzzle();
+        StateHasChanged();
+    }
+
+    //timer
+    public void StartTimer()
+    {
+        counter = (int)timers.PuzzleATime.Subtract(DateTime.Now).TotalSeconds;
+        aTimer = new System.Timers.Timer(1000);
+        aTimer.Elapsed += CountDownTimer;
+        aTimer.Enabled = true;
+    }
+
+    public async void CountDownTimer(Object source, System.Timers.ElapsedEventArgs e)
+    {
+        if (counter > 0)
+        {
+            counter -= 1;
+            await InvokeAsync(() =>
+            {
+                Time = TimeSpan.FromSeconds(counter).ToString(@"dd\:hh\:mm\:ss");
+                StateHasChanged();
+            });
+        }
+        else
+        {
+            await InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
+        }
+    }
+
+
+    //puzzle piece download
+    private async Task DownloadPuzzle()
+    {
+        string base64Content = GetFileContentAsBase64();
+        await JSRuntime.InvokeVoidAsync("downloadFile", base64Content,"puzzleA.png");
+    }
+
+    private byte[] GetFileContent()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceName = "PandaHunt.Data.puzzleA.png"; // Replace with the correct namespace and resource name
+
+        using (Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
+        {
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                resourceStream.CopyTo(memoryStream);
+                return memoryStream.ToArray();
+            }
+
+        }
+    }
+
+    private string GetFileContentAsBase64()
+    {
+        byte[] fileContent = GetFileContent();
+        return Convert.ToBase64String(fileContent);
+    }
+
+
+    // puzzle 
+    private int rowCounter = 0;
+
+    private List<string> Group0 = new List<string>();
+    private List<string> Group1 = new List<string>();
+    private List<string> Group2 = new List<string>();
+    private List<string> Group3 = new List<string>();
+    private List<string> Group4 = new List<string>();
+    private List<string> Group5 = new List<string>();
+
+    private int grp0Target;
+    private int grp1Target;
+    private int grp2Target;
+    private int grp3Target;
+    private int grp4Target;
+    private int grp5Target;
+
+    private static string[] alphabet = { "a","á","b","c","č","d","ď","e","é","ě","f","g","h","ch","i","í","j","k","l","m","n","ň","o","ó","p","q","r","ř","s","š","t","ť","u","ú","ů","v","w","x","y","ý","z","ž" };
+
+    private List<string> alphabetList = alphabet.ToList();
+    Dictionary<string, int> Board = new Dictionary<string, int>();
+
+    private List<string> Colors = new List<string> { "red", "blue", "green", "black", "orange", "pink", "purple", "yellow", "white", "brown", "aquamarine" };
+    Dictionary<int, string> BoardColors = new Dictionary<int, string>();
+
+    public int Answer;
+    private void PreparePuzzle()
+    {
+
+        int[] groupLengths = { 3, 3, 3, 3, 3, 3 };
+
+        Random rnd = new Random();
+
+        for(int i = 24; i > 0;i--)
+        {
+            int target =  rnd.Next(0, 6);
+            if (groupLengths[target] > 9)
+            {
+                i++;
+            }
+            else
+            {
+                groupLengths[target]++;
+            }
+
+        }
+
+        grp0Target = rnd.Next(1, groupLengths[0] - 2);
+        grp1Target = rnd.Next(1, groupLengths[1] - 2);
+        grp2Target = rnd.Next(1, groupLengths[2] - 2);
+        grp3Target = rnd.Next(1, groupLengths[3] - 2);
+        grp4Target = rnd.Next(1, groupLengths[4] - 2);
+        grp5Target = rnd.Next(1, groupLengths[5] - 2);
+
+
+
+
+        int baseline = 0;
+        for (int i = baseline; i < baseline + groupLengths[0]; i++) if (i != baseline + grp0Target) Group0.Add(alphabet[i]);
+        baseline += groupLengths[0];
+
+        for (int i = baseline; i < baseline + groupLengths[1]; i++) if (i != baseline + grp1Target) Group1.Add(alphabet[i]);
+        baseline += groupLengths[1];
+
+        for (int i = baseline; i < baseline + groupLengths[2]; i++) if (i != baseline + grp2Target) Group2.Add(alphabet[i]);
+        baseline += groupLengths[2];
+
+        for (int i = baseline; i < baseline + groupLengths[3]; i++) if (i != baseline + grp3Target) Group3.Add(alphabet[i]);
+        baseline += groupLengths[3];
+
+        for (int i = baseline; i < baseline + groupLengths[4]; i++) if (i != baseline + grp4Target) Group4.Add(alphabet[i]);
+        baseline += groupLengths[4];
+
+        for (int i = baseline; i < baseline + groupLengths[5]; i++) if (i != baseline + grp5Target) Group5.Add(alphabet[i]);
+        baseline += groupLengths[5];
+
+        Shuffle(Group0);
+        Shuffle(Group1);
+        Shuffle(Group2);
+        Shuffle(Group3);
+        Shuffle(Group4);
+        Shuffle(Group5);
+
+        foreach (string ch in Group0) Board.Add(ch,0);
+        foreach (string ch in Group1) Board.Add(ch,1);
+        foreach (string ch in Group2) Board.Add(ch,2);
+        foreach (string ch in Group3) Board.Add(ch,3);
+        foreach (string ch in Group4) Board.Add(ch,4);
+        foreach (string ch in Group5) Board.Add(ch,5);
+
+        Shuffle(alphabetList);
+        RandomizeColors();
+
+    }
+
+    public void Shuffle(List<string> list)
+    {
+        Random rnd = new Random();
+
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = rnd.Next(n + 1);
+            string value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
+    }
+
+
+    private void RandomizeColors()
+    {
+        Shuffle(Colors);
+
+        for(int i =0; i< 6; i++)
+        {
+            BoardColors.Add(i, Colors[i]);
+        }
+    }
+
+    //result
+
+    public bool WrongAnswer = false;
+
+    private int msgCounter = 0;
+    private string WrongAnswerMessage = "";
+    public List<string> WrongAnsMsgs = new List<string> {
+        "Špatně", 
+        "Taky ne", 
+        "Pořád špatně", 
+        ":(",
+        "Tohle je taky špatně.",
+        "Bohužel ...",
+        "Třaba příště?", 
+        "Tak ještě jednou ...", 
+        "Ne.", 
+        "Ne ne.", 
+        "Ne ne ne.", 
+        "Ještě že je neomezený počet pokusů...", 
+        "Vytrvalost se cení.", 
+        "Špatně",
+        "Taky ne",
+        "Pořád špatně",
+        ":(",
+        "Tohle je taky špatně.",
+        "Bohužel ...",
+        "Třaba příště?",
+        "Tak ještě jednou ...",
+        "Ne.",
+        "Ne ne.",
+        "Ne ne ne.",
+        "Ještě že je neomezený počet pokusů...",
+        "Vytrvalost se cení.",
+        "Možná bude potřeba nápověda?", 
+        "Odpověď je číslo.", 
+        "Mělo by být šestimístné." };
+
+    private async void CheckAnswer()
+    {
+        string check = (grp0Target+1).ToString() + (grp1Target+1).ToString() + (grp2Target+1).ToString() + (grp3Target+1).ToString() + (grp4Target+1).ToString() + (grp5Target+1).ToString();
+        if (Answer.ToString() == check)
+        {
+            Solved = true;
+        }
+        else
+        {
+            if (msgCounter >= WrongAnsMsgs.Count) msgCounter = 0;
+            WrongAnswer = true;
+            WrongAnswerMessage = WrongAnsMsgs[msgCounter];
+            msgCounter++;
+            StateHasChanged();
+        }
+    }
+}
