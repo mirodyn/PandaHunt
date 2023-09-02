@@ -9,8 +9,183 @@
     font-weight: bold;
 }
 
+.opened{
+    display: flex;
+    flex-direction: column;
+   
+}
+.puzzleD {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-items: center;    
+}
+.mines-label {
+    width: 100%;
+    background: red;
+    text-align: center;
+    font-size: 30px;
+    font-weight: 500;
+    color: white;
+    margin-bottom: 10px;
+}
+
 #lock {
     fill: #da3225;
     margin: 20px;
     max-height: 500px;
+}
+
+.minefield {
+    margin-left: auto;
+    margin-right: auto;
+    font-weight: bold;
+    border-spacing: 0px;
+    width: 50%;
+    line-height: 10px;
+}
+#bang {
+    fill: orangered;
+    width: 50%;
+    align-self: center;
+}
+
+
+@media (max-width:900px) {
+
+    .minefield {
+        margin-left: auto;
+        margin-right: auto;
+        font-weight: bold;
+        border-spacing: 0px;
+        width: 500px;
+        line-height: 10px;
+    }
+
+    #bang {
+        fill: orangered;
+        width: 500px;
+        align-self: center;
+    }
+
+
+}
+
+
+.minefield-row{
+    width: 100%;
+    box-sizing:initial;
+}
+
+.minefield-cell{
+    width: 2%;
+    margin:0px;
+    padding:0px
+}
+
+
+.g .white-part{
+    fill:white;
+}
+
+#controls {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 30px;
+    align-items: center;
+    justify-items: center;
+    background: antiquewhite;
+    border: 3px solid #5e5951;
+    border-radius: 10px;
+}
+#movement-controls {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: auto;
+    height: 150px;
+}
+#light-controls {
+    display: flex;
+    flex-direction: row;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+@media (max-width:900px) {
+    #controls {
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 50px;
+        margin-bottom: auto;
+        padding: 30px;
+        align-items: center;
+        justify-items: center;
+        background: antiquewhite;
+        border: 3px solid #5e5951;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-items:center;
+    }
+    #light-controls {
+        display: flex;
+        flex-direction: column;
+        margin-left: 40px;
+        margin-right: auto;
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+
+}
+    .control-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 5px;
+        background-color: slategray;
+    }
+
+    .lightbulb-off {
+        fill: black;
+    }
+
+    .lightbulb-red {
+        fill: red;
+    }
+
+    .lightbulb-green {
+        fill: green;
+    }
+
+    .lightbulb-blue {
+        fill: blue;
+    }
+
+
+
+.solved {
+    display: flex;
+    flex-direction: column;
+    font-size: 3rem;
+    font-weight: bold;
+    align-items: center;
+    color: greenyellow;
+}
+
+.checkmark {
+    margin: 40px;
+    max-height: 200px;
+    fill: greenyellow;
+}
+
+.btn-primary {
+    background: whitesmoke;
+    color: black;
+    font-weight: bold;
+    border-color: whitesmoke;
+    width: 20.25rem;
 }

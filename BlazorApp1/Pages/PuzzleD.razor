@@ -1,11 +1,133 @@
 ﻿@page "/PuzzleD"
+@using PandaHunt.PuzzleDData;
+@using System.Reflection;
 @inject PuzzleTimers timers
+@inject IJSRuntime JSRuntime
+
 
 @if (timers.PuzzleDOpened)
 {
 
     <div class="opened">
-        <h3>Puzzle D OPENED</h3>
+        <audio id="sound" src="/media/bang.mp3" />
+        @if (Solved)
+        {
+            <div class="solved">
+                <svg class="checkmark" viewBox="0 0 24 24"><path d="M12 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm0-2c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.393 7.5l-5.643 5.784-2.644-2.506-1.856 1.858 4.5 4.364 7.5-7.643-1.857-1.857z" /></svg>
+                <br />
+                <span>Výborně!</span>
+                <br />
+                <button class="btn btn-primary" @onclick="DownloadPuzzle">Stáhnout dílek</button>
+            </div>
+        }
+        else
+        {
+            <div class="mines-label">PAZI MINE!</div>
+            @if (!Bang){
+                <div class="puzzleD">
+
+            <table class="minefield">
+
+            @for(int i = 0; i < 25; i++)
+            {
+                <tr class="minefield-row">
+                @for(int j =0; j < 25; j++)
+                {
+                    <td class="minefield-cell">@((MarkupString)minefield.GetPositionHtml(j, i))</td>
+                }
+                </tr>
+
+            }
+            </table>
+            <div id="controls">
+                <table id="movement-controls">
+                    <tr>
+                        <td></td>
+                        <td>
+                                <button class="control-btn" @onclick="()=> Move(1)"><svg viewBox="0 0 24 24"><path d="M15,20H9V12H4.16L12,4.16L19.84,12H15V20Z" /></svg></button>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>
+                                <button class="control-btn" @onclick="()=> Move(3)"><svg viewBox="0 0 24 24"><path d="M20,9V15H12V19.84L4.16,12L12,4.16V9H20Z" /></svg></button>
+
+                        </td>
+                        <td>
+                        </td>
+                        <td>
+                                <button class="control-btn" @onclick="()=> Move(4)"><svg viewBox="0 0 24 24"><path d="M4,15V9H12V4.16L19.84,12L12,19.84V15H4Z" /></svg></button>
+
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                                <button class="control-btn" @onclick="()=> Move(2)"><svg viewBox="0 0 24 24"><path d="M9,4H15V12H19.84L12,19.84L4.16,12H9V4Z" /></svg></button>
+                        </td>
+                        <td></td>
+                    </tr>
+                </table>
+                <table id="light-controls">
+                    <tr>
+                            <td>
+                                <button class="control-btn" @onclick="()=> SwitchLight(1)">
+                                    @if (minefield.RedLight)
+                                    {
+                                        <svg class="lightbulb-red"  viewBox="0 0 24 24"><title>lightbulb</title><path d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" /></svg>
+                                    }
+                                    else
+                                    {
+                                        <svg class="lightbulb-off"  viewBox="0 0 24 24"><title>lightbulb</title><path d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" /></svg>
+                                    }
+                                </button>
+                            </td>
+                    </tr>
+                    <tr>
+                            <td>
+                                <button class="control-btn" @onclick="()=> SwitchLight(2)">
+                                    @if (minefield.GreenLight)
+                                    {
+                                        <svg class="lightbulb-green" viewBox="0 0 24 24"><title>lightbulb</title><path d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" /></svg>
+                                    }
+                                    else
+                                    {
+                                        <svg class="lightbulb-off" viewBox="0 0 24 24"><title>lightbulb</title><path d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" /></svg>
+                                    }
+                                </button>
+                            </td>
+                    </tr>
+                        <tr>
+                            <td>
+                                <button class="control-btn" @onclick="()=> SwitchLight(3)">
+                                    @if (minefield.BlueLight)
+                                    {
+                                        <svg class="lightbulb-blue" viewBox="0 0 24 24"><title>lightbulb</title><path d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" /></svg>
+                                    }
+                                    else
+                                    {
+                                        <svg class="lightbulb-off" viewBox="0 0 24 24"><title>lightbulb</title><path d="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" /></svg>
+                                    }
+                                </button>
+                            </td>
+                        </tr>
+                </table>
+            </div>
+            </div>
+        
+            }
+            else{
+            <svg viewBox="0 0 210 297"
+                 id="bang">
+                <defs id="defs980" />
+                <g id="layer1">
+                    <path id="path854"
+                          d="m 70.799369,244.25106 c 0.544159,-6.19401 2.799605,-55.6263 2.549466,-55.87642 -0.148703,-0.14871 -6.904418,1.3274 -15.012705,3.28023 -8.108286,1.95283 -14.816747,3.4762 -14.907704,3.38525 -0.09096,-0.091 3.410879,-8.21994 7.781841,-18.06441 4.37095,-9.84448 8.006183,-18.15691 8.078281,-18.47208 0.08774,-0.38373 -3.263892,-2.34587 -10.145506,-5.93936 l -10.276625,-5.36635 6.502429,-3.2309 c 3.576331,-1.77701 6.502418,-3.30532 6.502418,-3.39626 0,-0.17273 -27.571443,-28.43908 -39.954966,-40.961977 l -7.1606004,-7.241194 2.8507219,0.828776 c 12.6727145,3.684279 68.3942355,19.569915 68.6447435,19.569915 0.175191,0 0.943978,-4.91155 1.708414,-10.91456 0.764423,-6.003015 1.502072,-11.347274 1.639212,-11.876134 0.225426,-0.869305 0.810403,-0.370165 6.096936,5.202267 3.216172,3.390109 5.980407,6.163837 6.142748,6.163837 0.16234,0 7.531464,-14.723175 16.375837,-32.718164 l 16.08069,-32.718162 0.0929,2.21859 c 0.0511,1.220224 0.47919,19.110324 0.95131,39.755775 0.47211,20.645452 0.89467,37.573471 0.93901,37.617811 0.0444,0.0443 4.48191,-0.63937 9.86125,-1.51936 5.37935,-0.87999 10.01103,-1.60447 10.29261,-1.60995 0.28807,-0.006 -1.2699,3.55037 -3.56246,8.13114 -2.24094,4.47761 -3.94021,8.22118 -3.77614,8.31905 0.16405,0.0979 13.65795,3.35718 29.98644,7.2429 16.32847,3.88571 29.45655,7.18548 29.17349,7.33281 -0.28305,0.14733 -12.69237,4.64536 -27.57627,9.99563 l -27.06164,9.72776 6.04856,5.92761 c 3.32671,3.26018 13.02571,12.84359 21.55335,21.29646 l 15.5048,15.36885 -4.89625,-1.75365 c -2.69294,-0.96452 -15.71892,-5.63939 -28.94663,-10.38862 -13.22771,-4.74921 -24.23585,-8.66896 -24.46254,-8.71056 -0.2547,-0.0467 -0.87129,5.84688 -1.61419,15.42918 -0.66112,8.52763 -1.2523,15.56731 -1.31369,15.64371 -0.0614,0.0764 -5.75276,-4.92696 -12.64744,-11.11858 -6.89468,-6.19162 -12.65748,-11.25748 -12.80623,-11.25748 -0.148749,0 -6.756763,12.02642 -14.684494,26.72538 -7.92773,14.69896 -14.499385,26.72538 -14.603694,26.72538 -0.104309,0 -0.08071,-1.23937 0.05233,-2.75414 z" />
+                </g>
+            </svg>
+
+            }
+        }
 
     </div>
 }
@@ -28,13 +150,17 @@ else
 }
 
 @code {
+    public bool Solved = false;
+    public bool Bang = false;
+    private MineField minefield = new MineField();
+
     private string Time = "";
     private static System.Timers.Timer aTimer;
     private int counter = 60;
 
     public void StartTimer()
     {
-        counter = (int)timers.PuzzleDTime.Subtract(DateTime.Now).TotalSeconds;
+        counter = (int)timers.PuzzleDTime.Subtract(DateTime.Now.AddHours(2)).TotalSeconds;
         aTimer = new System.Timers.Timer(1000);
         aTimer.Elapsed += CountDownTimer;
         aTimer.Enabled = true;
@@ -67,5 +193,79 @@ else
             StartTimer();
         }
     }
+
+    private async void Move(int direction)
+    {
+        try
+        {
+            minefield.Move(direction);
+
+        }
+        catch (OutOfMinefieldException)
+        {
+            Solved = true;
+        }
+        catch (SteppedOnMineException)
+        {
+            Bang = true;
+            StateHasChanged();
+            await JSRuntime.InvokeAsync<string>("PlaySound");
+            Thread.Sleep(2000);
+            minefield.Reset();
+            Bang = false;
+        }
+        finally
+        {
+            StateHasChanged();
+
+        }
+    }
+
+    private void SwitchLight(int light)
+    {
+        switch (light)
+        {
+            case 1:
+                minefield.RedLight = !minefield.RedLight;
+                break;
+            case 2:
+                minefield.GreenLight = !minefield.GreenLight;
+                break;
+            case 3:
+                minefield.BlueLight = !minefield.BlueLight;
+                break;
+        }
+        StateHasChanged();
+    }
+
+    //puzzle piece download
+    private async Task DownloadPuzzle()
+    {
+        string base64Content = GetFileContentAsBase64();
+        await JSRuntime.InvokeVoidAsync("downloadFile", base64Content, "puzzleD.png");
+    }
+
+    private byte[] GetFileContent()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceName = "PandaHunt.Data.puzzleD.png"; // Replace with the correct namespace and resource name
+
+        using (Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
+        {
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                resourceStream.CopyTo(memoryStream);
+                return memoryStream.ToArray();
+            }
+
+        }
+    }
+
+    private string GetFileContentAsBase64()
+    {
+        byte[] fileContent = GetFileContent();
+        return Convert.ToBase64String(fileContent);
+    }
+
 
 }

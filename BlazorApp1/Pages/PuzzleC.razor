@@ -1,12 +1,52 @@
 ﻿@page "/PuzzleC"
+@using PandaHunt.Puzzle3Data;
+@using Microsoft.AspNetCore;
+@using System.Reflection;
 @inject PuzzleTimers timers
+@inject PandaDaysProvider PandaDays
+@inject IJSRuntime JSRuntime
 
 @if (timers.PuzzleCOpened)
 {
 
     <div class="opened">
-        <h3>Puzzle C OPENED</h3>
+        @if (!Solved){
+            <div class="panda-container">
+                @((MarkupString)PandaDays.GetCurrentActivityHtml(TestDate))
+            </div>
+            <br/>
+            <br/>
+           @* <EditForm Model="@this">
+                <InputDate TValue="DateTime" @bind-Value="@TestDate" @bind-Value:format="dd-MM-yyyy hh:mm" ></InputDate>
+                <InputText @bind-Value="TestTime" ></InputText>
+                <button type="submit" @onclick="ParseTime" >Test</button>
+            </EditForm>*@
+            <span>Co bylo ke snídani?</span>
+                <br />
+           
+            
+            <EditForm Model="@this" OnSubmit="@CheckAnswer">
+                <br />
+                <InputText class="input-text" @bind-Value="Answer" />
+                <br />
+                <button class="btn btn-primary form-btn" type="submit">Odeslat odpověď</button>
+            </EditForm>
+            @if (WrongAnswer)
+            {
+                <h2 class="wrong-answer">@WrongAnswerMessage</h2>
+            }
 
+        }
+        else
+        {
+            <div class="solved">
+                <svg class="checkmark" viewBox="0 0 24 24"><path d="M12 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm0-2c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.393 7.5l-5.643 5.784-2.644-2.506-1.856 1.858 4.5 4.364 7.5-7.643-1.857-1.857z" /></svg>
+                <br />
+                <span>Správně!</span>
+                <br />
+                <button class="btn btn-primary" @onclick="DownloadPuzzle">Stáhnout dílek</button>
+            </div>
+        }
     </div>
 }
 else
@@ -32,12 +72,13 @@ else
     private static System.Timers.Timer aTimer;
     private int counter = 60;
 
-    public void StartTimer()
+    public void StartTimers()
     {
-        counter = (int)timers.PuzzleCTime.Subtract(DateTime.Now).TotalSeconds;
+        counter = (int)timers.PuzzleCTime.Subtract(DateTime.Now.AddHours(2)).TotalSeconds;
         aTimer = new System.Timers.Timer(1000);
         aTimer.Elapsed += CountDownTimer;
         aTimer.Enabled = true;
+
     }
 
     public async void CountDownTimer(Object source, System.Timers.ElapsedEventArgs e)
@@ -60,12 +101,118 @@ else
         }
     }
 
+
     protected override void OnAfterRender(bool firstRender)
-    {
+    {   
         if (firstRender && !timers.PuzzleCOpened)
         {
-            StartTimer();
+            StartTimers();
         }
+    }
+
+    //test
+    private DateTime tt = DateTime.Now.AddHours(2);
+    string TestTime { get; set; }
+    DateTime TestDate { get { return tt; } set { tt = value; } } 
+
+    private void ParseTime()
+    {
+        if (String.IsNullOrEmpty(TestTime))
+        {
+            TestDate = TestDate.AddMinutes(TestDate.Minute * -1);
+            TestDate = TestDate.AddHours(TestDate.Hour * -1);
+        }
+        else
+        {
+            TestDate = TestDate.AddHours(TestDate.Hour * -1);
+            TestDate = TestDate.AddMinutes(TestDate.Minute * -1);
+
+            string[] parts = TestTime.Split(":");
+            TestDate = TestDate.AddHours(int.Parse(parts[0]));
+            TestDate = TestDate.AddMinutes(int.Parse(parts[1]));
+
+        }
+    }
+
+    public bool Solved { get; set; }
+    public string Answer { get; set; }
+    public bool WrongAnswer { get; set; }
+    public string WrongAnswerMessage { get; set; }
+
+    public int wrongMsgsCounter = 0;
+    public List<string> WrongAnsMsgs = new List<string> {
+        "Ne",
+        "Fuj",
+        "To nejím",
+        "Tohle? Ke snídani?",
+        "To jíš jo?",
+        "Bléé",
+        "Hnus",
+        "Ne ne.",
+        "Jestli nevíš, tak mi něco uvař.",
+        "Nevím o co se snažíš.",
+        "Taková kejda...",
+        "Evidentně nemáš vůbec vkus na jídlo.",
+        "Spálený chuťový buňky co?",
+        "Držím dietu.",
+        "Ha ha, nedržím. :D",
+        "Třeba to jednou tipneš.",
+        "Na světě je jenom 3 286 388 277 různých jídel. Takže se blížíš.",
+        "3 286 388 276",
+        "3 286 388 275",
+        "Už si to počítej sám/sama.",
+        "To snad ani není jídlo ne?",
+        "Bohužel, tady je to bez nápovědy...",
+        "Fakt není nápověda.",
+        "Prostě musíš být u snídaně no." };
+
+    private void CheckAnswer()
+    {
+
+        if (PandaDays.CheckAnswer(Answer, TestDate))
+        {
+            Solved = true;
+            WrongAnswer = false;
+        }
+        else
+        {
+            if (wrongMsgsCounter >= WrongAnsMsgs.Count) wrongMsgsCounter = 0;
+            WrongAnswer = true;
+            WrongAnswerMessage = WrongAnsMsgs[wrongMsgsCounter];
+            wrongMsgsCounter++;
+            StateHasChanged();
+        }
+    }
+
+
+
+    //puzzle piece download
+    private async Task DownloadPuzzle()
+    {
+        string base64Content = GetFileContentAsBase64();
+        await JSRuntime.InvokeVoidAsync("downloadFile", base64Content, "puzzleC.png");
+    }
+
+    private byte[] GetFileContent()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceName = "PandaHunt.Data.puzzleC.png"; // Replace with the correct namespace and resource name
+
+        using (Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
+        {
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                resourceStream.CopyTo(memoryStream);
+                return memoryStream.ToArray();
+            }
+
+        }
+    }
+
+    private string GetFileContentAsBase64()
+    {
+        byte[] fileContent = GetFileContent();
+        return Convert.ToBase64String(fileContent);
     }
 
 }

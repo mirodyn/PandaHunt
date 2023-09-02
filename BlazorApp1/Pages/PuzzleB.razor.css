@@ -39,7 +39,7 @@
 }
 
 .opened {
-    color: #da3225;
+    color: mediumaquamarine;
     margin-left: auto;
     margin-right: auto;
     display: block;
@@ -52,7 +52,9 @@
 .container{
     margin-top: 100px;
     margin-bottom: 100px;
+    fill: mediumaquamarine;
 }
+
 
 .form-btn {
     margin-top: 2rem;

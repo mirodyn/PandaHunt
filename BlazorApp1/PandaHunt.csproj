@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
@@ -11,7 +11,16 @@
   <ItemGroup>
     <None Remove="Pages\PuzzleA.razor.css" />
     <None Remove="Pages\PuzzleB.razor.css" />
+    <None Remove="Puzzle3Data\breakfast.svg" />
+    <None Remove="Puzzle3Data\dinner.svg" />
+    <None Remove="Puzzle3Data\playing.svg" />
+    <None Remove="Puzzle3Data\sleeping.svg" />
+    <None Remove="Puzzle3Data\toilet.svg" />
+    <None Remove="Puzzle3Data\wakeup.svg" />
     <None Remove="puzzleA.png" />
+    <None Remove="PuzzleDData\clear-tile.svg" />
+    <None Remove="PuzzleDData\panda-tile.svg" />
+    <None Remove="PuzzleDData\white-mine-tile.svg" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +30,15 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Data\puzzleA.png" />
+    <EmbeddedResource Include="Puzzle3Data\breakfast.svg" />
+    <EmbeddedResource Include="Puzzle3Data\dinner.svg" />
+    <EmbeddedResource Include="Puzzle3Data\playing.svg" />
+    <EmbeddedResource Include="Puzzle3Data\sleeping.svg" />
+    <EmbeddedResource Include="Puzzle3Data\toilet.svg" />
+    <EmbeddedResource Include="Puzzle3Data\wakeup.svg" />
+    <EmbeddedResource Include="PuzzleDData\clear-tile.svg" />
+	<EmbeddedResource Include="PuzzleDData\panda-tile.svg" />
+    <EmbeddedResource Include="PuzzleDData\white-mine-tile.svg" />
   </ItemGroup>
 
   <ItemGroup>

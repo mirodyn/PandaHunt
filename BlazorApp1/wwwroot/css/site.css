@@ -72,3 +72,130 @@ a, .btn-link {
     .blazor-error-boundary::after {
         content: "An error has occurred."
     }
+
+
+.panda-text {
+    height: 50%;
+    width: 50%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 30px;
+}
+
+#sleeping-panda {
+    width: 25rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#panda-toilet {
+    width: 25rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+#panda-dinner {
+    width: 25rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+#panda-playing {
+    width: 25rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+#panda-breakfast {
+    width: 25rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#panda-wakeup {
+    width: 25rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#breakfast-text{
+    color: red;
+    font-weight: 800;
+}
+
+
+#panda-position{
+    font-weight: bold;
+    color:white;
+    margin:5px;
+}
+
+.red-mine {
+    font-weight: bold;
+    color: red;
+    margin: 5px;
+}
+
+.blue-mine {
+    font-weight: bold;
+    color: blue;
+    margin: 5px;
+}
+
+.green-mine {
+    font-weight: bold;
+    color: green;
+    margin: 5px;
+}
+.yellow-mine {
+    font-weight: bold;
+    color: yellow;
+    margin: 5px;
+}
+.magenta-mine {
+    font-weight: bold;
+    color: magenta;
+    margin: 5px;
+}
+.cyane-mine {
+    font-weight: bold;
+    color: cyan;
+    margin: 5px;
+}
+
+.white-mine {
+    font-weight: bold;
+    color: white;
+    margin: 5px;
+}
+
+.clear-tile{
+    fill: gray;
+}
+
+.white-part {
+    fill: white;
+}
+.tile {
+    margin: 0px;
+    padding: 0px;
+    fill: gray;
+    /*min-width:10px;*/
+}
+
+.mine-red .white-part{
+    fill: red;
+}
+.mine-green .white-part {
+    fill: green;
+}
+.mine-blue .white-part {
+    fill: blue;
+}
+.mine-yellow .white-part {
+    fill: yellow;
+}
+.mine-magenta .white-part {
+    fill: magenta;
+}
+.mine-cyan .white-part {
+    fill: cyan;
+}
+

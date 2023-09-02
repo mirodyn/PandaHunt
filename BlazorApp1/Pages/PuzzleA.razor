@@ -98,7 +98,7 @@ else
     //timer
     public void StartTimer()
     {
-        counter = (int)timers.PuzzleATime.Subtract(DateTime.Now).TotalSeconds;
+        counter = (int)timers.PuzzleATime.Subtract(DateTime.Now.AddHours(2)).TotalSeconds;
         aTimer = new System.Timers.Timer(1000);
         aTimer.Elapsed += CountDownTimer;
         aTimer.Enabled = true;

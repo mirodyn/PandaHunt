@@ -1,7 +1,9 @@
 ﻿@page "/"
 @inject PuzzleTimers timers
 <PageTitle>Home</PageTitle>
+<div class="main-div">
     <svg class="puzzle-pieces-svg" viewBox="0 0 200 200">
+
         <g id="layer1">
         @if (timers.PuzzleAOpened)
         {
@@ -57,7 +59,17 @@
         }
         </g>
     </svg>
+    <div class="text-div">
 
+    <br />
+
+    <h3>Blahopřeji k překonání prvního úkolu!</h3>
+    <p>Stejně jako loni je i letos panda jenom jedna. První úkol máš za sebou. Teď tě čekají čtyří hádanky. Každá z nich tě po úspěšném splnění odmění puzzle dílkem. 
+       </p>
+       <p class="accent">Bez nich pandu nenajdeš.</p>
+       <p>Úkoly je možné řešit v libovolném pořadí a na rozdíl od loňska není potřeba tolik běhat po okolí. Budou se ale otevírat postupně. </p><p class="accent">Otevřený dílek / hádanka bude mít bílou barvu.</p>
+    </div>
+</div>
 
 @code{
 

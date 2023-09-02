@@ -1,23 +1,52 @@
 ﻿@page "/puzzleB"
+@using System.Reflection;
 @inject PuzzleTimers timers
+@inject IJSRuntime JSRuntime
+
+
 
 @if (timers.PuzzleBOpened)
 {
 
     <div class="opened">
-        <div class="container">
-        <h1>大同县胡东</h1>
-        <img width="200" alt="xmarksthespot" src="img/xmarksthespot.png"/>
+        @if (Solved)
+        {
+            <div class="solved">
+                <svg class="checkmark" viewBox="0 0 24 24"><path d="M12 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm0-2c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.393 7.5l-5.643 5.784-2.644-2.506-1.856 1.858 4.5 4.364 7.5-7.643-1.857-1.857z" /></svg>
+                <br />
+                <span>Správně!</span>
+                <br />
+                <button class="btn btn-primary" @onclick="DownloadPuzzle">Stáhnout dílek</button>
+            </div>
+        }
+        else
+        {
+            <div class="container">
+                <h1>大同市</h1>
+                <svg width="200px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M20.56 3.91C21.15 4.5 21.15 5.45 20.56 6.03L16.67 9.92L18.79 19.11L17.38 20.53L13.5 13.1L9.6 17L9.96 19.47L8.89 20.53L7.13 17.35L3.94 15.58L5 14.5L7.5 14.87L11.37 11L3.94 7.09L5.36 5.68L14.55 7.8L18.44 3.91C19 3.33 20 3.33 20.56 3.91Z" />
+                </svg>
+                <br />
+                <svg width="200px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M9,4H15V12H19.84L12,19.84L4.16,12H9V4Z" />
+                </svg>
+                <br />
+                <img width="200" alt="xmarksthespot" src="img/xmarksthespot.png" />
+            </div>
 
-        </div>
-
-        <EditForm Model="@this">
-            <InputNumber @bind-Value="AnswA" step="0.001" ></InputNumber>
-            <InputNumber @bind-Value="AnswB" step="0.001"></InputNumber>
-            <br/>
-            <br/>
-            <button type="submit" class="btn-primary form-btn" @onclick="CheckAnswer">Odeslat odpověď</button>
-        </EditForm>
+            <EditForm Model="@this">
+                <InputNumber @bind-Value="AnswA" step="0.001"></InputNumber>
+                <InputNumber @bind-Value="AnswB" step="0.001"></InputNumber>
+                <br />
+                <br />
+                <button type="submit" class="btn-primary form-btn" @onclick="CheckAnswer">Odeslat odpověď</button>
+            </EditForm>
+            @if (WrongAnswer)
+            {
+                <h2 class="wrong-answer">@WrongAnswerMessage</h2>
+            }
+        }
+       
     </div>
 }
 else
@@ -45,7 +74,7 @@ else
 
     public void StartTimer()
     {
-        counter = (int)timers.PuzzleBTime.Subtract(DateTime.Now).TotalSeconds;
+        counter = (int)timers.PuzzleBTime.Subtract(DateTime.Now.AddHours(2)).TotalSeconds;
         aTimer = new System.Timers.Timer(1000);
         aTimer.Elapsed += CountDownTimer;
         aTimer.Enabled = true;
@@ -80,37 +109,104 @@ else
     }
 
 
-
-
     //puzzle
 
 
-    string text = "大同县胡东";
-    private string solution1 = "39.973675";
-    private string solution2 = "113.484598";
+    string text = "大同市";
+    private string solution1 = "39.973";
+    private string solution2 = "113.484";
 
-    public string AnswA;
-    public string AnswB;
+    public double AnswA;
+    public double AnswB;
+
+
+    public string AnswAstr;
+    public string AnswBstr;
 
     private bool Solved = false;
-    private bool WrongAnwer = false;
+    private bool WrongAnswer = false;
+
+    private int msgCounter = 0;
+    private string WrongAnswerMessage = "";
+    public List<string> WrongAnsMsgs = new List<string> {
+        "Chyba",
+        "Taky nebude ono.",
+        "Ne ne",
+        "Smůla",
+        "Skoro! Akorát že vůbec.",
+        "Bohužel ...",
+        "Zkus to znovu.",
+        "A znovu.",
+        "A ještě.",
+        "Ach jo.",
+        "Ne ne ne.",
+        "Budeš se muset víc zamyslet.",
+         "Chyba",
+        "Taky nebude ono.",
+        "Ne ne",
+        "Smůla",
+        "Skoro! Akorát že vůbec.",
+        "Bohužel ...",
+        "Zkus to znovu.",
+        "A znovu.",
+        "A ještě.",
+        "Ach jo.",
+        "Ne ne ne.",
+        "Budeš se muset víc zamyslet.",
+        "Chceš poradit?",
+        "Google prý umí dobře poradit.",
+        "Google mapy umí obzvlášť dobře poradit." };
+
 
     private void CheckAnswer()
     {
 
-        AnswA = AnswA.Replace(",", ".").Substring(0, 6);
-        AnswB = AnswB.Replace(",", ".").Substring(0,7);
+        AnswAstr = AnswA.ToString().Replace(",", ".").Substring(0, 6);
+        AnswBstr = AnswB.ToString().Replace(",", ".").Substring(0, 7);
 
-        if (AnswA == solution1 && AnswB == solution2)
+        if (AnswAstr == solution1 && AnswBstr == solution2)
         {
             Solved = true;
         }
         else
         {
             Solved = false;
-            WrongAnwer = true;
+            if (msgCounter >= WrongAnsMsgs.Count) msgCounter = 0;
+            WrongAnswer = true;
+            WrongAnswerMessage = WrongAnsMsgs[msgCounter];
+            msgCounter++;
+            StateHasChanged();
         }
     }
 
 
+
+    //puzzle piece download
+    private async Task DownloadPuzzle()
+    {
+        string base64Content = GetFileContentAsBase64();
+        await JSRuntime.InvokeVoidAsync("downloadFile", base64Content, "puzzleB.png");
+    }
+
+    private byte[] GetFileContent()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceName = "PandaHunt.Data.puzzleB.png"; // Replace with the correct namespace and resource name
+
+        using (Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
+        {
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                resourceStream.CopyTo(memoryStream);
+                return memoryStream.ToArray();
+            }
+
+        }
+    }
+
+    private string GetFileContentAsBase64()
+    {
+        byte[] fileContent = GetFileContent();
+        return Convert.ToBase64String(fileContent);
+    }
 }
