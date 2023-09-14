@@ -53,6 +53,12 @@
     width: 20.25rem;
     margin: 0 auto;
 }
+.warning-text{
+    color: white;
+    font-size: 1rem;
+    font-weight: 200;
+    text-align: center;
+}
 
 .board-char{
     width: 3rem;
@@ -65,6 +71,7 @@
     padding:3px;
     border-radius: 0.5rem;
     text-align:center;
+    font-family: Arial;
 }
 .group-red{
     background: red;
