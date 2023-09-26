@@ -9,6 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Data\puzzleB.png" />
+    <None Remove="Data\puzzleC.png" />
+    <None Remove="Data\puzzleD.png" />
     <None Remove="Pages\PuzzleA.razor.css" />
     <None Remove="Pages\PuzzleB.razor.css" />
     <None Remove="Puzzle3Data\breakfast.svg" />
@@ -30,6 +33,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Data\puzzleA.png" />
+    <EmbeddedResource Include="Data\puzzleB.png" />
+    <EmbeddedResource Include="Data\puzzleC.png" />
+    <EmbeddedResource Include="Data\puzzleD.png" />
     <EmbeddedResource Include="Puzzle3Data\breakfast.svg" />
     <EmbeddedResource Include="Puzzle3Data\dinner.svg" />
     <EmbeddedResource Include="Puzzle3Data\playing.svg" />
@@ -47,6 +53,12 @@
 
   <ItemGroup>
     <Content Update="wwwroot\css\fonts\28-days-later.ttf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\img\panda.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\img\pelosovi.jpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Update="wwwroot\img\xmarksthespot.png">

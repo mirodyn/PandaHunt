@@ -161,8 +161,13 @@ else
     private void CheckAnswer()
     {
 
-        AnswAstr = AnswA.ToString().Replace(",", ".").Substring(0, 6);
-        AnswBstr = AnswB.ToString().Replace(",", ".").Substring(0, 7);
+
+        int Astrmax = 6;
+        int Bstrmax = 7;
+        if (AnswA.ToString().Length < Astrmax) Astrmax = AnswA.ToString().Length;
+        if (AnswB.ToString().Length < Bstrmax) Bstrmax = AnswB.ToString().Length;
+        AnswAstr = AnswA.ToString().Replace(",", ".").Substring(0, Astrmax);
+        AnswBstr = AnswB.ToString().Replace(",", ".").Substring(0, Bstrmax);
 
         if (AnswAstr == solution1 && AnswBstr == solution2)
         {
