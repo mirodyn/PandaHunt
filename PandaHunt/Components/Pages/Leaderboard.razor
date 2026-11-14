@@ -1,0 +1,99 @@
+@page "/zebricek"
+@attribute [Authorize]
+@implements IDisposable
+@using System.Security.Claims
+@inject Scoreboard Scoreboard
+@inject GameSchedule Schedule
+@inject GameSettingsStore Settings
+
+<PageTitle>Žebříček · PandaHunt IV</PageTitle>
+
+<PageShell Title="Žebříček">
+    <p>@Note</p>
+
+    @if (standings is null)
+    {
+        <p class="ph-rank-empty">Načítám…</p>
+    }
+    else if (standings.Count == 0)
+    {
+        <p class="ph-rank-empty">Zatím tu nejsou žádní lovci.</p>
+    }
+    else
+    {
+        <table class="ph-ranking">
+            <thead>
+                <tr>
+                    <th scope="col">Pořadí</th>
+                    <th scope="col">Lovec</th>
+                    <th scope="col">Body</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in standings)
+                {
+                    var isMe = row.PlayerId == currentUserId;
+                    <tr class="@RowClass(row, isMe)" aria-current="@(isMe ? "true" : null)">
+                        <td class="ph-display ph-rank-place">@row.Rank.</td>
+                        <td class="ph-rank-name">
+                            @row.PlayerName
+                            @if (isMe)
+                            {
+                                <span class="ph-pill ph-pill-small ph-rank-me">ty</span>
+                            }
+                        </td>
+                        <td class="ph-display ph-rank-points"><PointsBadge Value="row.Points" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</PageShell>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private IReadOnlyList<Standing>? standings;
+    private string? currentUserId;
+
+    private string Note => Schedule switch
+    {
+        { IsHuntOver: true } => "Lov skončil. Tohle je konečné pořadí.",
+        { IsHuntOpen: true } => "Body se počítají průběžně, žebříček se aktualizuje sám.",
+        _ => "Body se začnou sbírat, až začne lov.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUserId = (await AuthenticationState).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Scoreboard.Changed += OnScoreboardChanged;
+        Settings.Changed += OnSettingsChanged;
+        standings = await Scoreboard.GetStandingsAsync();
+    }
+
+    private static string RowClass(Standing row, bool isMe) =>
+        $"{(row.Rank == 1 ? "ph-rank-first" : "")} {(isMe ? "ph-rank-mine" : "")}".Trim();
+
+    private void OnScoreboardChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            standings = await Scoreboard.GetStandingsAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    // The hunt dates changed: refresh the note.
+    private void OnSettingsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Scoreboard.Changed -= OnScoreboardChanged;
+        Settings.Changed -= OnSettingsChanged;
+    }
+}

@@ -1,0 +1,98 @@
+@page "/kod"
+@attribute [ExcludeFromInteractiveRouting]
+@inject Phase0Gate Gate
+@inject NavigationManager Navigation
+
+@* Phase 0: the first task. Visitors must enter a code found in the real world before they can register.
+   One box per character of the configured code; wwwroot/js/code-boxes.js adds auto-advance, backspace and paste. *@
+
+<PageTitle>Nultý úkol · PandaHunt IV</PageTitle>
+
+<PageShell Title="Nultý úkol" ShowBackLink="false">
+    <p><b>Doufám, že si užíváš Vánoční večírek výrostků!</b></p>
+    <p>Pandahunt se vrací, ale tentokrát bude probíhat trochu jinak. Pokud se budeš chtít zůčastnit lovu, budeš se muset registrovat. Registrovat se ale mohou jen ti, kteří zde zadají správný kód. K jeho získání ti určitě pomůžou tví kamarádi. :)</p>
+    <p><i>A pokud jsi tu až po večírku, nebo kamarády nemáš, nezoufej. Po vánocích už kód potřeba nebude.</i></p>
+    <EditForm Model="Input" FormName="kod" OnSubmit="CheckCode" method="post" class="ph-form">
+        @if (error is not null)
+        {
+            <ul class="ph-form-errors" role="alert"><li>@error</li></ul>
+        }
+
+        <div class="ph-field">
+            <label id="code-label" for="code-0">Kód</label>
+            <div class="ph-code @(error is null ? null : "is-wrong")" role="group" aria-labelledby="code-label"
+                 data-numeric="@(Gate.IsNumericCode ? "true" : null)">
+                @for (var i = 0; i < Gate.CodeLength; i++)
+                {
+                    <input id="code-@i"
+                           class="ph-code-box"
+                           name="Input.Chars[@i]"
+                           type="text"
+                           inputmode="@(Gate.IsNumericCode ? "numeric" : "text")"
+                           autocomplete="off"
+                           autocapitalize="characters"
+                           spellcheck="false"
+                           placeholder=" "
+                           aria-label="@($"Znak {i + 1} z {Gate.CodeLength}")"
+                           autofocus="@(i == 0)" />
+                }
+            </div>
+        </div>
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">
+            Ověřit kód
+        </MudButton>
+    </EditForm>
+
+    <p class="ph-form-alt">Už máš účet? <a href="@AccountEndpoints.LoginPath">Přihlas se.</a></p>
+</PageShell>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    private string? error;
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+
+        if (HttpContext.User.Identity?.IsAuthenticated == true)
+            Navigation.NavigateTo("/");
+        else if (!Gate.IsEnabled)
+            Navigation.NavigateTo(AccountEndpoints.LoginPath);
+        else if (Gate.HasPassed(HttpContext))
+            Navigation.NavigateTo(AccountEndpoints.RegisterPath);
+    }
+
+    private void CheckCode()
+    {
+        var chars = Input.Chars.Take(Gate.CodeLength).Select(c => c?.Trim() ?? "").ToList();
+        if (chars.Count < Gate.CodeLength || chars.Any(c => c.Length == 0))
+        {
+            error = "Vyplň všechna políčka kódu.";
+            return;
+        }
+
+        switch (Gate.CheckCode(HttpContext, string.Concat(chars)))
+        {
+            case CodeCheckResult.Correct:
+                Navigation.NavigateTo(AccountEndpoints.RegisterPath);
+                break;
+            case CodeCheckResult.Wrong:
+                error = "Tohle není správný kód. Hledej dál!";
+                break;
+            case CodeCheckResult.TooManyAttempts:
+                error = "Příliš mnoho pokusů. Počkej chvíli a zkus to znovu.";
+                break;
+        }
+    }
+
+    private sealed class InputModel
+    {
+        public List<string?> Chars { get; set; } = [];
+    }
+}

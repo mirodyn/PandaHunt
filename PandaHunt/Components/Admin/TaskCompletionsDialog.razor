@@ -1,0 +1,79 @@
+@* Tick the players who finished a task. *@
+@inject HuntTasks Tasks
+@inject Scoreboard Scoreboard
+
+<MudDialog>
+    <DialogContent>
+        @if (players is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (players.Count == 0)
+        {
+            <MudText>Zatím tu nejsou žádní hráči.</MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mb-2">
+                Splnilo @selected.Count z @players.Count. Hráči uvidí u úkolu fajfku hned po uložení.
+                Body se tím nepřidávají – ty dej v záložce Body.
+            </MudText>
+            <div class="ph-admin-checklist">
+                @foreach (var player in players)
+                {
+                    <MudCheckBox T="bool"
+                                 Value="@selected.Contains(player.PlayerId)"
+                                 ValueChanged="@(on => Toggle(player.PlayerId, on))"
+                                 Color="Color.Primary"
+                                 Label="@player.PlayerName" />
+                }
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="saving">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="@(saving || players is null)">Uložit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public int TaskId { get; set; }
+
+    private IReadOnlyList<Standing>? players;
+    private HashSet<string> selected = [];
+    private bool saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Same people as on the leaderboard (players, not admins), alphabetically.
+        var standings = await Scoreboard.GetStandingsAsync();
+        selected = (await Tasks.GetCompletedPlayerIdsAsync(TaskId)).ToHashSet();
+        players = standings.OrderBy(p => p.PlayerName, StringComparer.CurrentCultureIgnoreCase).ToList();
+    }
+
+    private void Toggle(string playerId, bool on)
+    {
+        if (on)
+            selected.Add(playerId);
+        else
+            selected.Remove(playerId);
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            await Tasks.SetCompletedPlayersAsync(TaskId, selected);
+            Dialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

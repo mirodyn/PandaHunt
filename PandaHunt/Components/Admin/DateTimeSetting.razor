@@ -1,0 +1,47 @@
+@* A local date/time switch with "now" and "clear" buttons. Uses the browser's native date-time picker. *@
+@using System.Globalization
+@inject GameSchedule Schedule
+
+<div class="ph-admin-datetime">
+    @* Bound as text on purpose: the browser always sends "yyyy-MM-ddTHH:mm" regardless of language,
+       and MudBlazor's DateTime conversion fails on that under the Czech culture. *@
+    <MudTextField T="string"
+                  Value="@Text"
+                  ValueChanged="OnTextChanged"
+                  Label="@Label"
+                  HelperText="@HelperText"
+                  InputType="InputType.DateTimeLocal"
+                  ShrinkLabel="true"
+                  Variant="Variant.Outlined" />
+    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="() => ValueChanged.InvokeAsync(Schedule.LocalNow)">Teď</MudButton>
+    <MudIconButton Icon="@Icons.Material.Filled.Clear"
+                   Size="Size.Small"
+                   aria-label="@($"Vymazat: {Label}")"
+                   Disabled="Value is null"
+                   OnClick="() => ValueChanged.InvokeAsync(null)" />
+</div>
+
+@code {
+    private static readonly string[] InputFormats = ["yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss"];
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string? HelperText { get; set; }
+
+    [Parameter]
+    public DateTime? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTime?> ValueChanged { get; set; }
+
+    private string? Text => Value?.ToString(InputFormats[0], CultureInfo.InvariantCulture);
+
+    // The browser sends "" until the date and time are both complete and valid.
+    private Task OnTextChanged(string? text) =>
+        ValueChanged.InvokeAsync(
+            DateTime.TryParseExact(text, InputFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var value)
+                ? value
+                : null);
+}

@@ -1,0 +1,68 @@
+.ph-ranking {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+}
+
+    .ph-ranking th {
+        padding: 0 0.6rem 0.4rem;
+        border-bottom: 3px solid #000;
+        color: #555;
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        text-align: left;
+    }
+
+        .ph-ranking th:last-child {
+            text-align: right;
+        }
+
+    .ph-ranking td {
+        padding: 0.55rem 0.6rem;
+        border-bottom: 1px solid #d9d9d9;
+        vertical-align: middle;
+    }
+
+.ph-rank-place {
+    width: 3.5rem;
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.ph-rank-name {
+    overflow-wrap: anywhere;
+}
+
+.ph-rank-points {
+    font-size: 1.6rem;
+    line-height: 1;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Your own row */
+.ph-rank-mine {
+    background: #f2f2f2;
+    font-weight: 700;
+}
+
+/* The leader(s) */
+.ph-rank-first {
+    background: #000;
+    color: #fff;
+}
+
+    .ph-rank-first td {
+        border-bottom-color: #000;
+    }
+
+    .ph-rank-first .ph-rank-me {
+        border-color: #fff;
+    }
+
+.ph-rank-empty {
+    margin-top: 1.5rem;
+    color: #555;
+}

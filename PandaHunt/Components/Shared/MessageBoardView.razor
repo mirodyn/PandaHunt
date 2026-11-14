@@ -1,0 +1,125 @@
+@* Live message board: every connected browser re-renders when someone posts. *@
+@implements IDisposable
+@inject MessageBoard Board
+@inject GameSchedule Schedule
+
+<section class="ph-board" aria-labelledby="ph-board-title">
+    <header class="ph-board-head">
+        <h2 id="ph-board-title" class="ph-display">Vzkazy</h2>
+        <span class="ph-live" title="Nové vzkazy se zobrazují samy">živě</span>
+    </header>
+
+    @* Only shown on pages that require login, so every viewer can post. *@
+    <div class="ph-board-compose">
+        <MudTextField T="string"
+                      @bind-Value="draft"
+                      Placeholder="Napiš vzkaz…"
+                      Variant="Variant.Outlined"
+                      Lines="2"
+                      MaxLength="Message.MaxLength"
+                      Counter="Message.MaxLength"
+                      HelperText="Ctrl+Enter odešle"
+                      Immediate="true"
+                      Disabled="posting"
+                      OnKeyDown="OnKeyDownAsync" />
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   EndIcon="@Icons.Material.Filled.Send"
+                   Disabled="@(posting || string.IsNullOrWhiteSpace(draft))"
+                   OnClick="PostAsync">
+            Odeslat
+        </MudButton>
+    </div>
+    @if (error is not null)
+    {
+        <p class="ph-board-error" role="alert">@error</p>
+    }
+
+    <div class="ph-board-list" role="log" aria-live="polite">
+        @if (messages is null)
+        {
+            <p class="ph-board-empty">Načítám vzkazy…</p>
+        }
+        else if (messages.Count == 0)
+        {
+            <p class="ph-board-empty">Zatím tu nikdo nic nenapsal. Buď první!</p>
+        }
+        else
+        {
+            @foreach (var message in messages)
+            {
+                <article class="ph-msg" @key="message.Id">
+                    <header>
+                        <strong>@message.Author</strong>
+                        <time>@Schedule.Format(message.CreatedAtUtc)</time>
+                    </header>
+                    <p>@message.Text</p>
+                </article>
+            }
+        }
+    </div>
+</section>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private IReadOnlyList<MessageView>? messages;
+    private string? draft;
+    private string? error;
+    private bool posting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Board.Changed += OnBoardChanged;
+        messages = await Board.GetLatestAsync();
+    }
+
+    private void OnBoardChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            messages = await Board.GetLatestAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey)
+            await PostAsync();
+    }
+
+    private async Task PostAsync()
+    {
+        if (posting || string.IsNullOrWhiteSpace(draft))
+            return;
+
+        var user = (await AuthenticationState).User;
+        var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId is null)
+            return;
+
+        posting = true;
+        error = null;
+        try
+        {
+            await Board.PostAsync(userId, draft);
+            draft = null;
+        }
+        catch (Exception)
+        {
+            error = "Vzkaz se nepodařilo odeslat. Zkus to prosím znovu.";
+        }
+        finally
+        {
+            posting = false;
+        }
+    }
+
+    public void Dispose() => Board.Changed -= OnBoardChanged;
+}

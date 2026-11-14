@@ -1,0 +1,78 @@
+@*
+    Wrapper for every task page (Components/Pages/Tasks). It finds the task whose link is this page's
+    address (Administrace → Úkoly) and shows the page only once that task is active and the hunt is on.
+    Otherwise players get the normal "not found" page, so unreleased tasks stay secret even if someone
+    guesses the address. Admins can always preview.
+*@
+@using System.Security.Claims
+@inject HuntTasks Tasks
+@inject GameSchedule Schedule
+@inject NavigationManager Navigation
+
+@if (taskContext is null)
+{
+    @* Loading. *@
+}
+else if (!CanSee)
+{
+    <PageTitle>Nenalezeno · PandaHunt IV</PageTitle>
+    <PageShell Title="Tady nic není">
+        <p>Tahle stránka neexistuje. A panda tu taky není.</p>
+    </PageShell>
+}
+else
+{
+    <PageTitle>@Title · PandaHunt IV</PageTitle>
+    <PageShell Title="@Title" Wide="Wide" BackHref="/lov" BackText="Zpět na lov">
+        @if (AdminNote is { } note)
+        {
+            <p class="ph-banner">@note</p>
+        }
+        @ChildContent?.Invoke(taskContext)
+    </PageShell>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    /// <summary>The page content. Its context is the <see cref="TaskContext"/> (call CompleteAsync when solved).</summary>
+    [Parameter]
+    public RenderFragment<TaskContext>? ChildContent { get; set; }
+
+    /// <summary>Wider card, for tasks that need room.</summary>
+    [Parameter]
+    public bool Wide { get; set; }
+
+    private TaskContext? taskContext;
+    private bool isAdmin;
+
+    private HuntTaskView? HuntTask => taskContext?.HuntTask;
+
+    private bool IsHuntOn => Schedule.IsHuntOpen || Schedule.IsHuntOver;
+
+    private bool IsActive => HuntTask is { OpensAt: { } opens } && Schedule.Now >= opens && IsHuntOn;
+
+    private bool CanSee => IsActive || isAdmin;
+
+    private string Title => HuntTask?.Name ?? "Nepřiřazený úkol";
+
+    private string? AdminNote =>
+        IsActive ? null
+        : HuntTask is null ? "Náhled pro admina – tuhle stránku zatím nemá žádný úkol. Přiřaď ji v Administraci → Úkoly."
+        : !IsHuntOn ? "Náhled pro admina – lov ještě nezačal, hráči tuhle stránku nevidí."
+        : "Náhled pro admina – úkol ještě není aktivní, hráči tuhle stránku nevidí.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        isAdmin = user.IsInRole(AppRoles.Admin);
+        var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0];
+        var huntTask = await Tasks.FindByLinkAsync("/" + Uri.UnescapeDataString(relative));
+        var done = huntTask is not null && (await Tasks.GetCompletedTaskIdsAsync(playerId)).Contains(huntTask.Id);
+
+        taskContext = new TaskContext(Tasks, huntTask, playerId, done);
+    }
+}

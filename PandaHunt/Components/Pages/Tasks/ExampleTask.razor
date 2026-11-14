@@ -1,0 +1,26 @@
+@page "/lov/ukazka"
+@*
+    EXAMPLE TASK PAGE – copy this file to start a new task:
+      1. Copy it within this folder (Components/Pages/Tasks) and rename it, e.g. Leden.razor.
+      2. Change @page to the task's address, e.g. "/lov/leden". Players see the address once the task is
+         active, so keep it neutral (no hints in it).
+      3. Rebuild, then in Administrace → Úkoly edit the task and pick that address under "Stránka úkolu".
+
+    TaskShell does the rest: the title (= task name), the "back to the hunt" link and access. Players only get
+    in once the task is active; before that they see "not found". Admins can always preview.
+    Inside, "task" is the TaskContext: task.HuntTask (name, ...), task.IsCompleted, and
+    task.CompleteAsync() to call when the player solves it (gives them the checkmark on /lov).
+*@
+
+<TaskShell Context="task">
+    <p>Tady bude zadání úkolu <strong>@task.HuntTask?.Name</strong>.</p>
+
+    @if (task.IsCompleted)
+    {
+        <p><strong>Splněno!</strong> Na stránce Lov už u tohoto úkolu máš fajfku.</p>
+    }
+    else
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="task.CompleteAsync">Splnit (ukázka)</MudButton>
+    }
+</TaskShell>

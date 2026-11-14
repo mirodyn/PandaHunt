@@ -1,0 +1,59 @@
+@* A panda that walks around the whole screen, bouncing from edge to edge. Movement lives in wwwroot/js/panda.js. *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="panda" class="ph-panda" aria-hidden="true">
+    <svg class="ph-panda-svg" viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg">
+        <ellipse class="leg leg-left" cx="42" cy="112" rx="12" ry="14" />
+        <ellipse class="leg leg-right" cx="78" cy="112" rx="12" ry="14" />
+        <ellipse class="fur" cx="60" cy="88" rx="34" ry="28" />
+        <ellipse class="black" cx="29" cy="86" rx="10" ry="17" transform="rotate(20 29 86)" />
+        <ellipse class="black" cx="91" cy="86" rx="10" ry="17" transform="rotate(-20 91 86)" />
+        <circle class="black" cx="35" cy="22" r="11" />
+        <circle class="black" cx="85" cy="22" r="11" />
+        <ellipse class="fur" cx="60" cy="46" rx="34" ry="30" />
+        <ellipse class="black" cx="46" cy="46" rx="8.5" ry="11" transform="rotate(-30 46 46)" />
+        <ellipse class="black" cx="74" cy="46" rx="8.5" ry="11" transform="rotate(30 74 46)" />
+        <circle class="eye" cx="47" cy="45" r="3.6" />
+        <circle class="eye" cx="73" cy="45" r="3.6" />
+        <g class="pupils">
+            <circle class="black" cx="47" cy="45" r="1.9" />
+            <circle class="black" cx="73" cy="45" r="1.9" />
+        </g>
+        <ellipse class="black" cx="60" cy="58" rx="5" ry="3.5" />
+        <path class="mouth" d="M54 62 Q57 66 60 62 Q63 66 66 62" />
+    </svg>
+</div>
+
+@code {
+    private ElementReference panda;
+    private IJSObjectReference? module;
+    private IJSObjectReference? walker;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/panda.js");
+        walker = await module.InvokeAsync<IJSObjectReference>("start", panda);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (walker is not null)
+            {
+                await walker.InvokeVoidAsync("stop");
+                await walker.DisposeAsync();
+            }
+            if (module is not null)
+                await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Browser already gone; nothing to clean up.
+        }
+    }
+}

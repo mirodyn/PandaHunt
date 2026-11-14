@@ -1,0 +1,179 @@
+@* Game settings: phases, entry code and date/time switches. Saved to the DB and applied immediately. *@
+@implements IDisposable
+@inject GameSettingsStore Store
+@inject GameSchedule Schedule
+@inject Phase0Gate Gate
+@inject ISnackbar Snackbar
+
+<div class="ph-admin-status" aria-label="Aktuální stav">
+    <span class="ph-pill @(Gate.IsEnabled ? "on" : null)">Fáze 0: @(Gate.IsEnabled ? "zapnutá" : "vypnutá")</span>
+    <span class="ph-pill @(Schedule.IsRegistrationOpen ? "on" : null)">Registrace: @RegistrationState</span>
+    <span class="ph-pill @(Schedule.IsHuntOpen ? "on" : null)">Lov: @HuntState</span>
+</div>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Fáze 0 – vstupní kód</h2>
+    <MudSwitch T="bool" @bind-Value="phase0Enabled" Color="Color.Primary" Label="Před registrací vyžadovat kód" />
+    <MudTextField T="string"
+                  @bind-Value="code"
+                  Label="Kód"
+                  Variant="Variant.Outlined"
+                  MaxLength="GameSettings.MaxCodeLength"
+                  Immediate="true"
+                  HelperText="@CodeHelp"
+                  Class="ph-admin-code" />
+    <MudNumericField T="int"
+                     @bind-Value="phase0Bonus"
+                     Label="Bonus za registraci (body)"
+                     Variant="Variant.Outlined"
+                     Min="0"
+                     Max="GameSettings.MaxBonusPoints"
+                     HelperText="Dostane ho každý, kdo se zaregistruje, dokud je fáze 0 zapnutá (tedy kdo našel kód). 0 = žádný bonus."
+                     Class="ph-admin-narrow mt-4" />
+</section>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Registrace</h2>
+    <div class="ph-admin-grid">
+        <DateTimeSetting Label="Otevírá se" @bind-Value="registrationOpens" HelperText="Prázdné = otevřená hned" />
+        <DateTimeSetting Label="Zavírá se" @bind-Value="registrationCloses" HelperText="Prázdné = nezavírá se" />
+    </div>
+    <MudNumericField T="int"
+                     @bind-Value="firstPlayerBonus"
+                     Label="Bonus pro prvního registrovaného (body)"
+                     Variant="Variant.Outlined"
+                     Min="0"
+                     Max="GameSettings.MaxBonusPoints"
+                     HelperText="Dostane ho úplně první hráč, který se zaregistruje (admini se nepočítají). 0 = žádný bonus."
+                     Class="ph-admin-narrow mt-4" />
+</section>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Lov</h2>
+    <div class="ph-admin-grid">
+        <DateTimeSetting Label="Začíná" @bind-Value="huntStarts" HelperText="Prázdné = lov není naplánovaný" />
+        <DateTimeSetting Label="Končí" @bind-Value="huntEnds" HelperText="Prázdné = nekončí" />
+    </div>
+    <MudTextField T="string"
+                  @bind-Value="huntIntro"
+                  Label="Úvodní text na stránce Lov"
+                  Variant="Variant.Outlined"
+                  Lines="7"
+                  MaxLength="GameSettings.MaxHuntIntroLength"
+                  Placeholder="@GameSettings.SampleHuntIntro"
+                  HelperText="Odstavce odděl prázdným řádkem. Prázdné = ukázkový text (vidíš ho šedě)."
+                  Class="mt-4" />
+</section>
+
+@if (errors.Count > 0)
+{
+    <ul class="ph-form-errors" role="alert">
+        @foreach (var error in errors)
+        {
+            <li>@error</li>
+        }
+    </ul>
+}
+
+<div class="ph-admin-actions">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="saving">Uložit nastavení</MudButton>
+    <MudButton Variant="Variant.Text" OnClick="Load" Disabled="saving">Zahodit změny</MudButton>
+</div>
+
+@code {
+    private bool phase0Enabled;
+    private string? code;
+    private int phase0Bonus;
+    private int firstPlayerBonus;
+    private DateTime? registrationOpens;
+    private DateTime? registrationCloses;
+    private DateTime? huntStarts;
+    private DateTime? huntEnds;
+    private string? huntIntro;
+
+    private IReadOnlyList<string> errors = [];
+    private bool saving;
+
+    private string RegistrationState => Schedule switch
+    {
+        { IsRegistrationOpen: true } => "otevřená",
+        { IsRegistrationClosed: true } => "uzavřená",
+        { RegistrationOpensAt: { } opens } => $"otevře se {Schedule.Format(opens)}",
+        _ => "zavřená",
+    };
+
+    private string HuntState => Schedule switch
+    {
+        { IsHuntOpen: true } => "běží",
+        { IsHuntOver: true } => "skončil",
+        { HuntStartsAt: { } start } => $"začne {Schedule.Format(start)}",
+        _ => "nenaplánovaný",
+    };
+
+    private string CodeHelp
+    {
+        get
+        {
+            var length = GameSettings.NormalizeCode(code).Length;
+            var boxes = length == 0
+                ? $"Hráči uvidí tolik políček, kolik má kód znaků (max. {GameSettings.MaxCodeLength})."
+                : $"Hráči uvidí {length} {CzechText.Plural(length, "políčko", "políčka", "políček")}.";
+            return boxes + " Změna kódu zneplatní kód těm, kdo ho už zadali, ale ještě se nezaregistrovali.";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Load();
+        Store.Changed += OnStoreChanged;
+    }
+
+    private void Load()
+    {
+        var s = Store.Current;
+        phase0Enabled = s.Phase0Enabled;
+        code = s.Phase0Code;
+        phase0Bonus = s.Phase0BonusPoints;
+        firstPlayerBonus = s.FirstPlayerBonusPoints;
+        registrationOpens = Schedule.ToLocal(s.RegistrationOpensAt);
+        registrationCloses = Schedule.ToLocal(s.RegistrationClosesAt);
+        huntStarts = Schedule.ToLocal(s.HuntStartsAt);
+        huntEnds = Schedule.ToLocal(s.HuntEndsAt);
+        huntIntro = s.HuntIntro;
+        errors = [];
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            var s = Store.Edit();
+            s.Phase0Enabled = phase0Enabled;
+            s.Phase0Code = code ?? "";
+            s.Phase0BonusPoints = phase0Bonus;
+            s.FirstPlayerBonusPoints = firstPlayerBonus;
+            s.RegistrationOpensAt = Schedule.FromLocal(registrationOpens);
+            s.RegistrationClosesAt = Schedule.FromLocal(registrationCloses);
+            s.HuntStartsAt = Schedule.FromLocal(huntStarts);
+            s.HuntEndsAt = Schedule.FromLocal(huntEnds);
+            s.HuntIntro = string.IsNullOrWhiteSpace(huntIntro) ? null : huntIntro.Trim();
+
+            errors = await Store.SaveAsync(s);
+            if (errors.Count == 0)
+            {
+                Load();
+                Snackbar.Add("Nastavení uloženo.", Severity.Success);
+            }
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    // Another admin saved (or this one): refresh the status pills.
+    private void OnStoreChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Store.Changed -= OnStoreChanged;
+}

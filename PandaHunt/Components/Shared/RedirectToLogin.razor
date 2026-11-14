@@ -1,0 +1,10 @@
+@* Sends an anonymous visitor to the entry endpoint, which picks the phase-0 code page or login. *@
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        var returnUrl = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+        Navigation.NavigateTo($"{AccountEndpoints.EntryPath}?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+    }
+}

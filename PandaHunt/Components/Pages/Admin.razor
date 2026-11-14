@@ -1,0 +1,23 @@
+@page "/admin"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+
+@* Admin page. Add a new <MudTabPanel> here for each new area (puzzles, messages, ...). *@
+
+<PageTitle>Administrace · PandaHunt IV</PageTitle>
+
+<PageShell Title="Administrace" Wide="true">
+    <MudTabs Elevation="0" KeepPanelsAlive="true" SliderColor="Color.Primary" Class="ph-admin-tabs">
+        <MudTabPanel Text="Nastavení hry">
+            <AdminSettings />
+        </MudTabPanel>
+        <MudTabPanel Text="Úkoly">
+            <AdminTasks />
+        </MudTabPanel>
+        <MudTabPanel Text="Hráči">
+            <AdminUsers />
+        </MudTabPanel>
+        <MudTabPanel Text="Body">
+            <AdminPoints />
+        </MudTabPanel>
+    </MudTabs>
+</PageShell>

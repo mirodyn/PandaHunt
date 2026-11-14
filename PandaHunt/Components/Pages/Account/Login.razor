@@ -1,0 +1,97 @@
+@page "/prihlaseni"
+@attribute [ExcludeFromInteractiveRouting]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject AdminBootstrap AdminBootstrap
+@inject NavigationManager Navigation
+
+<PageTitle>Přihlášení · PandaHunt IV</PageTitle>
+
+<PageShell Title="Přihlášení" ShowBackLink="false">
+    <EditForm Model="Input" FormName="prihlaseni" OnValidSubmit="LoginAsync" method="post" class="ph-form">
+        <DataAnnotationsValidator />
+
+        @if (error is not null)
+        {
+            <ul class="ph-form-errors" role="alert"><li>@error</li></ul>
+        }
+
+        <div class="ph-field">
+            <label for="nick">Přezdívka nebo e-mail</label>
+            <InputText id="nick" @bind-Value="Input.UserName" autocomplete="username" class="ph-input" />
+            <ValidationMessage For="() => Input.UserName" />
+        </div>
+        <div class="ph-field">
+            <label for="password">Heslo</label>
+            <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="current-password" class="ph-input" />
+            <ValidationMessage For="() => Input.Password" />
+        </div>
+        <label class="ph-check">
+            <InputCheckbox @bind-Value="Input.RememberMe" />
+            Zapamatovat si mě
+        </label>
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">
+            Přihlásit se
+        </MudButton>
+    </EditForm>
+
+    <p class="ph-form-alt">Ještě nemáš účet? <a href="@AccountEndpoints.RegisterPath">Zaregistruj se.</a></p>
+</PageShell>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? error;
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+
+        if (HttpContext.User.Identity?.IsAuthenticated == true)
+            Navigation.NavigateTo("/");
+    }
+
+    private async Task LoginAsync()
+    {
+        var login = Input.UserName.Trim();
+        var user = login.Contains('@')
+            ? await UserManager.FindByEmailAsync(login) ?? await UserManager.FindByNameAsync(login)
+            : await UserManager.FindByNameAsync(login);
+
+        if (user is not null)
+            await AdminBootstrap.EnsureAdminRoleAsync(UserManager, user); // before sign-in, so the role is in the cookie
+
+        var result = user is null
+            ? Microsoft.AspNetCore.Identity.SignInResult.Failed
+            : await SignInManager.PasswordSignInAsync(user, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
+        if (!result.Succeeded)
+        {
+            error = "Přezdívka nebo heslo nesedí.";
+            return;
+        }
+
+        Navigation.NavigateTo(AccountEndpoints.IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/");
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Vyplň přezdívku.")]
+        public string UserName { get; set; } = "";
+
+        [Required(ErrorMessage = "Vyplň heslo.")]
+        public string Password { get; set; } = "";
+
+        public bool RememberMe { get; set; } = true;
+    }
+}

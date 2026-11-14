@@ -1,0 +1,60 @@
+@page "/sin-slavy"
+@attribute [Authorize]
+@inject IWebHostEnvironment Environment
+
+<PageTitle>Síň slávy · PandaHunt IV</PageTitle>
+
+<PageShell Title="Síň slávy" Wide="true">
+    <p>Ti, kdo už pandu jednou našli.</p>
+
+    <div class="ph-fame">
+        @for (var i = 0; i < Winners.Length; i++)
+        {
+            var winner = Winners[i];
+            var photo = FindPhoto(i + 1);
+            <figure class="ph-fame-item">
+                <div class="ph-frame">
+                    <div class="ph-frame-mat">
+                        @if (photo is not null)
+                        {
+                            <img class="ph-frame-photo" src="@Assets[photo]" alt="@($"{winner.Name}, {winner.Year}")" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="ph-frame-photo ph-frame-empty" aria-hidden="true">
+                                <img src="@Assets["favicon.svg"]" alt="" />
+                                <span>Fotka bude brzy</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <figcaption>
+                    <span class="ph-display ph-fame-name">@winner.Name</span>
+                    <span class="ph-fame-year">@winner.Year</span>
+                </figcaption>
+            </figure>
+        }
+    </div>
+</PageShell>
+
+@code {
+    // ===== Edit here =====
+    // Winners from left to right. Photos: wwwroot/img/sin-slavy/1.jpg, 2.jpg, 3.jpg
+    // (.jpeg, .png and .webp work too). Until a photo exists, its frame shows a placeholder.
+    private static readonly Winner[] Winners =
+    [
+        new("Tereza Bobálová", "20XX"),
+        new("Pelikánovi", "20XX"),
+        new("Vít Eliáš", "20XX"),
+    ];
+    // =====================
+
+    private static readonly string[] PhotoExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+
+    private sealed record Winner(string Name, string Year);
+
+    private string? FindPhoto(int number) =>
+        PhotoExtensions
+            .Select(extension => $"img/sin-slavy/{number}{extension}")
+            .FirstOrDefault(path => Environment.WebRootFileProvider.GetFileInfo(path).Exists);
+}

@@ -1,0 +1,137 @@
+@* Hunt tasks: add/edit/delete, and mark which players finished each one. *@
+@implements IDisposable
+@inject HuntTasks Tasks
+@inject GameSchedule Schedule
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<section class="ph-admin-section">
+    <div class="ph-admin-heading">
+        <h2 class="ph-display">Úkoly</h2>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => EditAsync(null)">Přidat úkol</MudButton>
+    </div>
+    <p>
+        Hráči vidí na stránce <a href="/lov">Lov</a> všechny úkoly, řazené podle data „Aktivní od“. Do té doby
+        (nebo bez data) je úkol jen naplánovaný. Aktivní úkol jde rozkliknout, pokud má vyplněnou „Stránku úkolu“ –
+        tu přidáš, až bude stránka v aplikaci naprogramovaná (složka Components/Pages/Tasks).
+    </p>
+
+    <MudTable T="HuntTaskView"
+              Items="tasks"
+              Loading="tasks is null"
+              Dense="true"
+              Hover="true"
+              Elevation="0"
+              Breakpoint="Breakpoint.Sm"
+              Class="ph-admin-table">
+        <HeaderContent>
+            <MudTh>Úkol</MudTh>
+            <MudTh>Typ</MudTh>
+            <MudTh>Aktivní od</MudTh>
+            <MudTh>Stránka</MudTh>
+            <MudTh>Splnili</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @{ var type = TaskTypes.Get(context.Type); }
+            <MudTd DataLabel="Úkol"><strong>@context.Name</strong></MudTd>
+            <MudTd DataLabel="Typ">
+                <span class="ph-admin-type"><MudIcon Icon="@type.Icon" Size="Size.Small" /> @type.Label</span>
+            </MudTd>
+            <MudTd DataLabel="Aktivní od">@(context.OpensAt is { } opens ? Schedule.Format(opens) : "–")</MudTd>
+            <MudTd DataLabel="Stránka">
+                @if (context.Link is { } link)
+                {
+                    <a href="@link" target="_blank" rel="noopener">@link</a>
+                }
+                else if (context.OpensAt is { } opens && Schedule.Now >= opens)
+                {
+                    <span class="ph-pill on ph-pill-small" title="Úkol je aktivní, ale hráči ho nemají kde otevřít">chybí!</span>
+                }
+                else
+                {
+                    @("–")
+                }
+            </MudTd>
+            <MudTd DataLabel="Splnili">@context.CompletedCount</MudTd>
+            <MudTd Class="ph-admin-row-actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Checklist" Size="Size.Small"
+                               aria-label="@($"Kdo splnil {context.Name}")" title="Kdo splnil"
+                               OnClick="() => CompletionsAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               aria-label="@($"Upravit {context.Name}")" title="Upravit"
+                               OnClick="() => EditAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small"
+                               aria-label="@($"Smazat {context.Name}")" title="Smazat"
+                               OnClick="() => DeleteAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Zatím tu nejsou žádné úkoly.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</section>
+
+@code {
+    private IReadOnlyList<HuntTaskView>? tasks;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Tasks.Changed += OnTasksChanged;
+        tasks = await Tasks.GetAllAsync();
+    }
+
+    private async Task EditAsync(HuntTaskView? task)
+    {
+        var parameters = new DialogParameters<EditTaskDialog> { { d => d.EditedTask, task } };
+        var dialog = await Dialogs.ShowAsync<EditTaskDialog>(task is null ? "Nový úkol" : $"Upravit úkol {task.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await dialog.Result is { Canceled: false })
+            Snackbar.Add(task is null ? "Úkol přidán." : "Úkol upraven.", Severity.Success);
+    }
+
+    private async Task CompletionsAsync(HuntTaskView task)
+    {
+        var parameters = new DialogParameters<TaskCompletionsDialog> { { d => d.TaskId, task.Id } };
+        var dialog = await Dialogs.ShowAsync<TaskCompletionsDialog>($"Kdo splnil: {task.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await dialog.Result is { Canceled: false })
+            Snackbar.Add("Uloženo.", Severity.Success);
+    }
+
+    private async Task DeleteAsync(HuntTaskView task)
+    {
+        var done = task.CompletedCount > 0 ? $" Zmizí i záznamy o tom, kdo ho splnil ({task.CompletedCount})." : "";
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Smazat úkol",
+            $"Opravdu smazat úkol „{task.Name}“?{done} Body hráčů zůstanou. Nejde to vrátit.",
+            yesText: "Smazat",
+            cancelText: "Zrušit");
+        if (confirmed != true)
+            return;
+
+        await Tasks.DeleteAsync(task.Id);
+        Snackbar.Add($"Úkol „{task.Name}“ smazán.", Severity.Success);
+    }
+
+    // Changed here or in another admin tab: reload.
+    private void OnTasksChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            tasks = await Tasks.GetAllAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    public void Dispose() => Tasks.Changed -= OnTasksChanged;
+}

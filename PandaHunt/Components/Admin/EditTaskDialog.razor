@@ -1,0 +1,111 @@
+@* Add or edit a hunt task. *@
+@inject HuntTasks Tasks
+@inject GameSchedule Schedule
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="pt-2">@* room for the first field's floating label *@
+            <MudTextField T="string"
+                          @bind-Value="name"
+                          Label="Název"
+                          Placeholder="např. Leden"
+                          Variant="Variant.Outlined"
+                          MaxLength="HuntTask.MaxNameLength" />
+            <MudSelect T="string"
+                       @bind-Value="type"
+                       Label="Typ"
+                       Variant="Variant.Outlined"
+                       ToStringFunc="@(key => key is null ? null : TaskTypes.Get(key).Label)">
+                @foreach (var option in TaskTypes.All)
+                {
+                    <MudSelectItem Value="@option.Key">
+                        <span class="ph-admin-type"><MudIcon Icon="@option.Icon" Size="Size.Small" /> @option.Label</span>
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            <DateTimeSetting Label="Aktivní od" @bind-Value="opensAt" HelperText="Prázdné = jen naplánovaný, zatím neaktivní" />
+            <div>
+                <MudTextField T="string"
+                              @bind-Value="link"
+                              Label="Stránka úkolu"
+                              Placeholder="/lov/leden"
+                              Variant="Variant.Outlined"
+                              Immediate="true"
+                              MaxLength="HuntTask.MaxLinkLength"
+                              HelperText="@LinkHelp" />
+                @if (TaskPages.Routes.Count > 0)
+                {
+                    <div class="ph-admin-links">
+                        <span>Stránky úkolů v aplikaci:</span>
+                        @foreach (var route in TaskPages.Routes)
+                        {
+                            <MudChip T="string" Text="@route" Size="Size.Small" Variant="Variant.Outlined"
+                                     Color="@(TaskPages.SameLink(route, link) ? Color.Primary : Color.Default)"
+                                     OnClick="() => link = route" />
+                        }
+                    </div>
+                }
+            </div>
+            @if (errors.Count > 0)
+            {
+                <ul class="ph-form-errors" role="alert">
+                    @foreach (var error in errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="saving">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="saving">Uložit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    /// <summary>The task to edit, or null for a new one.</summary>
+    [Parameter]
+    public HuntTaskView? EditedTask { get; set; }
+
+    private string? name;
+    private string? type;
+    private DateTime? opensAt;
+    private string? link;
+    private IReadOnlyList<string> errors = [];
+    private bool saving;
+
+    protected override void OnInitialized()
+    {
+        name = EditedTask?.Name;
+        type = EditedTask?.Type ?? TaskTypes.Unknown.Key;
+        opensAt = Schedule.ToLocal(EditedTask?.OpensAt);
+        link = EditedTask?.Link;
+    }
+
+    private string LinkHelp => TaskPages.Normalize(link) switch
+    {
+        null => "Kam hráče pustí dlaždice úkolu, až bude aktivní. Prázdné = zatím bez stránky (dlaždice nejde otevřít).",
+        var l when TaskPages.IsExternal(l) => "Vnější odkaz – otevře se v nové záložce.",
+        var l when TaskPages.Exists(l) => "Stránka úkolu v aplikaci existuje.",
+        _ => "Pozor: taková stránka úkolu v aplikaci (zatím) není. Uložit to jde, ale hráče to pošle na „nenalezeno“.",
+    };
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            errors = await Tasks.SaveAsync(new TaskEdit(EditedTask?.Id ?? 0, name ?? "", type ?? "", Schedule.FromLocal(opensAt), link));
+            if (errors.Count == 0)
+                Dialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

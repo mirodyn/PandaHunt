@@ -1,0 +1,82 @@
+@* Add or take away points for one player. *@
+@inject Scoreboard Scoreboard
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="pt-2">@* room for the first field's floating label *@
+            <MudSelect T="string"
+                       @bind-Value="playerId"
+                       Label="Hráč"
+                       Variant="Variant.Outlined"
+                       ToStringFunc="PlayerName">
+                @foreach (var player in Players)
+                {
+                    <MudSelectItem Value="@player.PlayerId">@player.PlayerName (@CzechText.Points(player.Points))</MudSelectItem>
+                }
+            </MudSelect>
+            <MudNumericField T="int?"
+                             @bind-Value="points"
+                             Label="Body"
+                             Variant="Variant.Outlined"
+                             Min="-Scoreboard.MaxPointsPerEntry"
+                             Max="Scoreboard.MaxPointsPerEntry"
+                             HelperText="Záporné číslo body ubere." />
+            <MudTextField T="string"
+                          @bind-Value="comment"
+                          Label="Komentář (nepovinné)"
+                          Variant="Variant.Outlined"
+                          MaxLength="PointEntry.MaxCommentLength"
+                          HelperText="Hráč ho uvidí u svých bodů na stránce Lov, např. „Leden – první na místě“." />
+            @if (errors.Count > 0)
+            {
+                <ul class="ph-form-errors" role="alert">
+                    @foreach (var error in errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="saving">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="saving">Uložit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Standing> Players { get; set; } = [];
+
+    /// <summary>Pre-selected player, or null to let the admin pick.</summary>
+    [Parameter]
+    public string? PlayerId { get; set; }
+
+    private string? playerId;
+    private int? points;
+    private string? comment;
+    private IReadOnlyList<string> errors = [];
+    private bool saving;
+
+    protected override void OnInitialized() => playerId = PlayerId;
+
+    private string PlayerName(string? id) => Players.FirstOrDefault(p => p.PlayerId == id)?.PlayerName ?? "";
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            errors = await Scoreboard.AwardAsync(playerId, points ?? 0, comment);
+            if (errors.Count == 0)
+                Dialog.Close(DialogResult.Ok($"{PlayerName(playerId)} {CzechText.SignedPoints(points!.Value)} {CzechText.Plural(points.Value, "bod", "body", "bodů")}"));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

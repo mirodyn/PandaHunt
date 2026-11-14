@@ -1,0 +1,72 @@
+@*
+    Shows the "you got points" popup (PointsAwardedDialog) for point changes the logged-in player hasn't
+    seen yet: right away if they're online when the points arrive, otherwise on their next visit.
+    Lives in MainLayout and only does anything on interactive pages (the account pages are static).
+*@
+@implements IDisposable
+@using System.Security.Claims
+@inject Scoreboard Scoreboard
+@inject IDialogService Dialogs
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private string? playerId;
+    private bool showing;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || AuthenticationState is null)
+            return;
+
+        playerId = (await AuthenticationState).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (playerId is null)
+            return;
+
+        Scoreboard.Changed += OnScoreboardChanged;
+        await AnnounceAsync();
+    }
+
+    private void OnScoreboardChanged() => _ = InvokeAsync(AnnounceAsync);
+
+    private async Task AnnounceAsync()
+    {
+        if (showing || playerId is null)
+            return;
+
+        try
+        {
+            var unseen = await Scoreboard.GetUnseenAsync(playerId);
+            if (unseen.Count == 0)
+                return;
+
+            showing = true;
+            var parameters = new DialogParameters<PointsAwardedDialog> { { d => d.Entries, unseen } };
+            var dialog = await Dialogs.ShowAsync<PointsAwardedDialog>("Body", parameters, new DialogOptions
+            {
+                NoHeader = true,
+                MaxWidth = MaxWidth.ExtraSmall,
+                FullWidth = true,
+                CloseOnEscapeKey = true,
+                BackdropClick = true,
+            });
+            await dialog.Result;
+            await Scoreboard.MarkSeenAsync(playerId, unseen.Select(e => e.Id));
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away; the points stay unseen and show next time.
+            return;
+        }
+        finally
+        {
+            showing = false;
+        }
+
+        // More points may have arrived while the popup was open.
+        await AnnounceAsync();
+    }
+
+    public void Dispose() => Scoreboard.Changed -= OnScoreboardChanged;
+}

@@ -1,0 +1,47 @@
+@* "You got points!" popup. Shown by PointsAnnouncer for point changes the player hasn't seen yet. *@
+
+<MudDialog Class="ph-award-dialog">
+    <DialogContent>
+        <div class="ph-award">
+            <div class="ph-award-amount ph-display">
+                <PointsBadge Value="Sum" Signed="true" />
+            </div>
+            <p class="ph-display ph-award-title">@Title</p>
+
+            @if (Entries.Count > 1 || Entries.Any(e => e.Comment is not null))
+            {
+                <ul class="ph-award-list">
+                    @foreach (var entry in Entries)
+                    {
+                        <li>
+                            <strong><PointsBadge Value="entry.Points" Signed="true" /></strong>
+                            <span>@(entry.Comment ?? "Od organizátorů")</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="() => Dialog.Close()">
+            @(Sum >= 0 ? "Super!" : "Rozumím")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PointEntryView> Entries { get; set; } = [];
+
+    private int Sum => Entries.Sum(e => e.Points);
+
+    private string Title => Sum switch
+    {
+        > 0 => $"Získáváš {CzechText.Points(Sum)}!",
+        < 0 => $"Přicházíš o {CzechText.Points(-Sum)}.",
+        _ => "Změna bodů",
+    };
+}

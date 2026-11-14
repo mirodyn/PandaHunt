@@ -1,0 +1,119 @@
+@* Player list: edit (nickname, e-mail, password, admin) and delete. *@
+@using System.Security.Claims
+@inject UserAdministration Users
+@inject GameSchedule Schedule
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<MudTable T="UserRow"
+          Items="rows"
+          Filter="Matches"
+          Loading="rows is null"
+          Dense="true"
+          Hover="true"
+          Elevation="0"
+          Breakpoint="Breakpoint.Sm"
+          Class="ph-admin-table">
+    <ToolBarContent>
+        <MudText Typo="Typo.subtitle1">@CountText</MudText>
+        <MudSpacer />
+        <MudTextField T="string"
+                      @bind-Value="search"
+                      Placeholder="Hledat přezdívku nebo e-mail"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      Clearable="true"
+                      Class="ph-admin-search" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Přezdívka</MudTh>
+        <MudTh>E-mail</MudTh>
+        <MudTh>Registrace</MudTh>
+        <MudTh>Vzkazy</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Přezdívka">
+            <strong>@context.UserName</strong>
+            @if (context.IsAdmin)
+            {
+                <span class="ph-pill on ph-pill-small">admin</span>
+            }
+        </MudTd>
+        <MudTd DataLabel="E-mail">@context.Email</MudTd>
+        <MudTd DataLabel="Registrace">@Schedule.Format(context.RegisteredAtUtc)</MudTd>
+        <MudTd DataLabel="Vzkazy">@context.MessageCount</MudTd>
+        <MudTd Class="ph-admin-row-actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="@($"Upravit {context.UserName}")"
+                           OnClick="() => EditAsync(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" aria-label="@($"Smazat {context.UserName}")"
+                           Disabled="@(context.Id == currentUserId || context.IsConfiguredAdmin)"
+                           OnClick="() => DeleteAsync(context)" />
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>@(string.IsNullOrWhiteSpace(search) ? "Zatím se nikdo nezaregistroval." : "Nikoho takového nevidím.")</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private IReadOnlyList<UserRow>? rows;
+    private string? search;
+    private string currentUserId = "";
+
+    private string CountText => rows is null ? "" : $"Registrovaní hráči: {rows.Count}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        currentUserId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync() => rows = await Users.ListAsync();
+
+    private bool Matches(UserRow row) =>
+        string.IsNullOrWhiteSpace(search)
+        || row.UserName.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+        || (row.Email?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private async Task EditAsync(UserRow row)
+    {
+        var parameters = new DialogParameters<EditUserDialog>
+        {
+            { d => d.User, row },
+            { d => d.CurrentUserId, currentUserId },
+        };
+        var dialog = await Dialogs.ShowAsync<EditUserDialog>($"Upravit hráče {row.UserName}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Hráč upraven.", Severity.Success);
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(UserRow row)
+    {
+        var messages = row.MessageCount > 0 ? $" Smažou se i jeho vzkazy ({row.MessageCount})." : "";
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Smazat hráče",
+            $"Opravdu smazat hráče „{row.UserName}“?{messages} Nejde to vrátit.",
+            yesText: "Smazat",
+            cancelText: "Zrušit");
+        if (confirmed != true)
+            return;
+
+        var errors = await Users.DeleteAsync(row.Id, currentUserId);
+        if (errors.Count > 0)
+            Snackbar.Add(string.Join(" ", errors), Severity.Error);
+        else
+            Snackbar.Add($"Hráč „{row.UserName}“ smazán.", Severity.Success);
+        await ReloadAsync();
+    }
+}

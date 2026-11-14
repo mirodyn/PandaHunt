@@ -1,0 +1,68 @@
+.ph-home {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 3rem 1rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* The panda walks underneath the content. Text gets a white backing (sized to the text, since
+   flex items shrink to fit) so the panda disappears behind it instead of showing through the letters. */
+.ph-title,
+.ph-tagline,
+.ph-status {
+    background: #fff;
+    padding: 0.15rem 0.6rem;
+}
+
+.ph-tagline {
+    margin: 0.5rem 0 2rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+/* Two buttons per row (2 × 11rem + gap), one per row on narrow phones. */
+.ph-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    max-width: 24rem;
+}
+
+    .ph-nav form {
+        display: contents;
+    }
+
+    .ph-nav ::deep .mud-button-root {
+        min-width: 11rem;
+        border-width: 3px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        background-color: #fff;
+    }
+
+    .ph-nav ::deep .mud-button-filled {
+        background-color: #000;
+    }
+
+    .ph-nav ::deep .mud-button-root.mud-disabled {
+        background-color: #e6e6e6;
+    }
+
+.ph-status {
+    margin: 1rem 0 2rem;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+    .ph-status a {
+        color: #000;
+        font-weight: 700;
+    }

@@ -1,0 +1,149 @@
+@* Points: current standings (add/take away points per player) and the history of every change. *@
+@implements IDisposable
+@inject Scoreboard Scoreboard
+@inject GameSchedule Schedule
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<section class="ph-admin-section">
+    <div class="ph-admin-heading">
+        <h2 class="ph-display">Pořadí</h2>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Disabled="@(standings is not { Count: > 0 })"
+                   OnClick="() => AwardAsync(null)">Přidat body</MudButton>
+    </div>
+    <p>Stejné pořadí vidí hráči na stránce <a href="/zebricek">Žebříček</a>. Admini (organizátoři) v něm nejsou.</p>
+
+    <MudTable T="Standing"
+              Items="standings"
+              Loading="standings is null"
+              Dense="true"
+              Hover="true"
+              Elevation="0"
+              Breakpoint="Breakpoint.Sm"
+              Class="ph-admin-table">
+        <HeaderContent>
+            <MudTh>Pořadí</MudTh>
+            <MudTh>Hráč</MudTh>
+            <MudTh>Body</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Pořadí">@context.Rank.</MudTd>
+            <MudTd DataLabel="Hráč"><strong>@context.PlayerName</strong></MudTd>
+            <MudTd DataLabel="Body"><strong>@context.Points</strong></MudTd>
+            <MudTd Class="ph-admin-row-actions">
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           aria-label="@($"Body pro {context.PlayerName}")"
+                           OnClick="() => AwardAsync(context)">Body</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Zatím tu nejsou žádní hráči.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</section>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Historie</h2>
+    <p>Každé přidání a ubrání bodů. Smazáním záznamu se změna vrátí.</p>
+
+    <MudTable T="PointEntryView"
+              Items="history"
+              Loading="history is null"
+              Dense="true"
+              Hover="true"
+              Elevation="0"
+              Breakpoint="Breakpoint.Sm"
+              Class="ph-admin-table">
+        <HeaderContent>
+            <MudTh>Kdy</MudTh>
+            <MudTh>Hráč</MudTh>
+            <MudTh>Body</MudTh>
+            <MudTh>Komentář</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Kdy">@Schedule.Format(context.CreatedAtUtc)</MudTd>
+            <MudTd DataLabel="Hráč">@context.PlayerName</MudTd>
+            <MudTd DataLabel="Body"><strong>@CzechText.SignedPoints(context.Points)</strong></MudTd>
+            <MudTd DataLabel="Komentář">@(context.Comment ?? "–")</MudTd>
+            <MudTd Class="ph-admin-row-actions">
+                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                               Size="Size.Small"
+                               aria-label="Smazat záznam"
+                               OnClick="() => DeleteAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Zatím nikdo žádné body nedostal.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</section>
+
+@code {
+    private IReadOnlyList<Standing>? standings;
+    private IReadOnlyList<PointEntryView>? history;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scoreboard.Changed += OnScoreboardChanged;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        standings = await Scoreboard.GetStandingsAsync();
+        history = await Scoreboard.GetHistoryAsync();
+    }
+
+    private async Task AwardAsync(Standing? player)
+    {
+        var parameters = new DialogParameters<AwardPointsDialog>
+        {
+            { d => d.Players, standings ?? [] },
+            { d => d.PlayerId, player?.PlayerId },
+        };
+        var title = player is null ? "Přidat body" : $"Body pro {player.PlayerName}";
+        var dialog = await Dialogs.ShowAsync<AwardPointsDialog>(title, parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await dialog.Result is { Canceled: false, Data: string summary })
+            Snackbar.Add(summary, Severity.Success);
+        // The list reloads through Scoreboard.Changed.
+    }
+
+    private async Task DeleteAsync(PointEntryView entry)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Smazat záznam",
+            $"Smazat {CzechText.SignedPoints(entry.Points)} pro hráče „{entry.PlayerName}“? Jeho skóre se podle toho upraví.",
+            yesText: "Smazat",
+            cancelText: "Zrušit");
+        if (confirmed != true)
+            return;
+
+        await Scoreboard.DeleteEntryAsync(entry.Id);
+        Snackbar.Add("Záznam smazán.", Severity.Success);
+    }
+
+    // Points changed (here, in another admin tab, or a player registered/was renamed): reload.
+    private void OnScoreboardChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            await ReloadAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    public void Dispose() => Scoreboard.Changed -= OnScoreboardChanged;
+}

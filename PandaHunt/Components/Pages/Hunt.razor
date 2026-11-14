@@ -1,0 +1,242 @@
+@page "/lov"
+@attribute [Authorize]
+@implements IDisposable
+@using System.Security.Claims
+@inject GameSchedule Schedule
+@inject GameSettingsStore Settings
+@inject HuntTasks Tasks
+@inject Scoreboard Scoreboard
+
+<PageTitle>Lov · PandaHunt IV</PageTitle>
+
+@if (!CanSeeHub)
+{
+    <PageShell Title="Lov">
+        <p>Lov ještě nezačal.</p>
+        <p>
+            @if (Schedule.HuntStartsAt is { } start)
+            {
+                @($"Začíná {Schedule.Format(start)}.")
+            }
+            else
+            {
+                @("Termín bude brzy oznámen.")
+            }
+        </p>
+    </PageShell>
+}
+else
+{
+    <PageShell Title="Lov" Wide="true">
+        @if (Banner is { } banner)
+        {
+            <p class="ph-banner">@banner</p>
+        }
+
+        <div class="ph-hunt">
+            <section class="ph-hunt-tasks" aria-labelledby="ph-tasks-heading">
+                <h2 id="ph-tasks-heading" class="ph-display">Úkoly</h2>
+                @if (tasks is null)
+                {
+                    <p>Načítám…</p>
+                }
+                else if (tasks.Count == 0)
+                {
+                    <p>Úkoly se brzy objeví.</p>
+                }
+                else
+                {
+                    <ul class="ph-tasks">
+                        @foreach (var task in tasks)
+                        {
+                            var state = StateOf(task);
+                            var type = TaskTypes.Get(task.Type);
+                            var link = OpenLink(task, state);
+                            var external = link is not null && TaskPages.IsExternal(link);
+                            <li>
+                                @* An <a> without href (task not open yet / no page) is just a plain, unclickable tile. *@
+                                <a class="ph-task @StateClass(state)"
+                                   href="@link"
+                                   target="@(external ? "_blank" : null)"
+                                   rel="@(external ? "noopener" : null)">
+                                    <div class="ph-task-icons">
+                                        <MudIcon Icon="@type.Icon" Title="@type.Label" Class="ph-task-type" />
+                                        <MudIcon Icon="@(state == TaskState.Done ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                                                 Title="@(state == TaskState.Done ? "Splněno" : "Nesplněno")"
+                                                 Class="ph-task-state" />
+                                    </div>
+                                    <div class="ph-display ph-task-name">@task.Name</div>
+                                    <div class="ph-task-status">
+                                        <span>@StatusText(task, state)</span>
+                                        @if (link is not null)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="ph-task-go" />
+                                        }
+                                    </div>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <aside class="ph-hunt-side">
+                <div class="ph-hunt-intro">
+                    @foreach (var paragraph in IntroParagraphs)
+                    {
+                        <p>@paragraph</p>
+                    }
+                </div>
+
+                <section class="ph-points" aria-labelledby="ph-points-heading">
+                    <h2 id="ph-points-heading" class="ph-display">Tvoje body</h2>
+                    <div class="ph-points-total">
+                        <PointsBadge Value="Total" Class="ph-display" />
+                    </div>
+                    @if (rank is not null)
+                    {
+                        <div class="ph-points-rank">@rank. místo v žebříčku</div>
+                    }
+
+                    @if (history is { Count: > 0 })
+                    {
+                        <ul class="ph-points-history" tabindex="0" aria-label="Historie bodů">
+                            @foreach (var entry in history)
+                            {
+                                <li>
+                                    <div class="ph-points-line">
+                                        <strong><PointsBadge Value="entry.Points" Signed="true" /></strong>
+                                        <span class="ph-points-when">@Schedule.FormatDate(entry.CreatedAtUtc)</span>
+                                    </div>
+                                    @if (entry.Comment is { } comment)
+                                    {
+                                        <div class="ph-points-comment">@comment</div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else if (history is not null)
+                    {
+                        <p class="ph-points-empty">Zatím žádné body. První přijdou se splněným úkolem.</p>
+                    }
+                </section>
+
+                <nav class="ph-hunt-buttons" aria-label="Další stránky">
+                    <MudButton Href="/zebricek" Variant="Variant.Outlined" Color="Color.Primary">Žebříček</MudButton>
+                    @* TODO: Href="/pravidla" once the rules page exists. *@
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="true" title="Pravidla budou brzy">Pravidla</MudButton>
+                </nav>
+            </aside>
+        </div>
+    </PageShell>
+}
+
+@code {
+    private enum TaskState { Planned, Open, Done }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private string playerId = "";
+    private bool isAdmin;
+    private IReadOnlyList<HuntTaskView>? tasks;
+    private IReadOnlySet<int> completed = new HashSet<int>();
+    private IReadOnlyList<PointEntryView>? history;
+    private int? rank;
+    private Timer? clock;
+
+    // Players see the hub while the hunt runs and after it ends; admins can preview it any time.
+    private bool CanSeeHub => Schedule.IsHuntOpen || Schedule.IsHuntOver || isAdmin;
+
+    private string? Banner => Schedule switch
+    {
+        { IsHuntOpen: true } => null,
+        { IsHuntOver: true } => "Lov skončil. Díky všem, kdo se zúčastnili!",
+        { HuntStartsAt: { } start } => $"Náhled pro admina – hráči tuhle stránku uvidí od {Schedule.Format(start)}.",
+        _ => "Náhled pro admina – hráči tuhle stránku uvidí, až nastavíš začátek lovu.",
+    };
+
+    private int Total => history?.Sum(e => e.Points) ?? 0;
+
+    private IEnumerable<string> IntroParagraphs =>
+        (string.IsNullOrWhiteSpace(Settings.Current.HuntIntro) ? GameSettings.SampleHuntIntro : Settings.Current.HuntIntro)
+            .ReplaceLineEndings("\n")
+            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        playerId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        isAdmin = user.IsInRole(AppRoles.Admin);
+
+        Tasks.Changed += OnDataChanged;
+        Scoreboard.Changed += OnDataChanged;
+        Settings.Changed += OnSettingsChanged;
+        await LoadAsync();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // Tasks open at a set time: re-check every 30 s so they unlock without a page reload.
+        if (firstRender)
+            clock = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadAsync()
+    {
+        tasks = await Tasks.GetAllAsync();
+        completed = await Tasks.GetCompletedTaskIdsAsync(playerId);
+        history = await Scoreboard.GetPlayerHistoryAsync(playerId);
+        rank = (await Scoreboard.GetStandingsAsync()).FirstOrDefault(s => s.PlayerId == playerId)?.Rank;
+    }
+
+    private TaskState StateOf(HuntTaskView task) =>
+        completed.Contains(task.Id) ? TaskState.Done
+        : task.OpensAt is { } opens && Schedule.Now >= opens ? TaskState.Open
+        : TaskState.Planned;
+
+    // Open and finished tasks lead to their page; admins can also open planned ones to preview them.
+    private string? OpenLink(HuntTaskView task, TaskState state) =>
+        task.Link is not null && (state != TaskState.Planned || isAdmin) ? task.Link : null;
+
+    private static string StateClass(TaskState state) => state switch
+    {
+        TaskState.Done => "ph-task-done",
+        TaskState.Open => "ph-task-open",
+        _ => "ph-task-planned",
+    };
+
+    private string StatusText(HuntTaskView task, TaskState state) => state switch
+    {
+        TaskState.Done => "Splněno",
+        TaskState.Open => "Nesplněno",
+        _ when task.OpensAt is { } opens => $"Od {Schedule.FormatDate(opens)}",
+        _ => "Připravujeme",
+    };
+
+    // Tasks, completions or points changed (for anyone): reload this player's view.
+    private void OnDataChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    // Intro text or hunt dates changed.
+    private void OnSettingsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Tasks.Changed -= OnDataChanged;
+        Scoreboard.Changed -= OnDataChanged;
+        Settings.Changed -= OnSettingsChanged;
+        clock?.Dispose();
+    }
+}

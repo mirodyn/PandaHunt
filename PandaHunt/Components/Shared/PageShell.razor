@@ -1,0 +1,37 @@
+@* Big "PandaHunt IV" title (links home) + black & white card, used by every page except the landing page. *@
+
+<div class="ph-page">
+    <div class="ph-display ph-title"><a href="/" class="ph-title-link" title="Na úvod">PandaHunt IV</a></div>
+    <div class="ph-card @(Wide ? "ph-card-wide" : null)">
+        <h1 class="ph-display ph-page-title">@Title</h1>
+        @ChildContent
+        @if (ShowBackLink)
+        {
+            <div class="ph-card-footer">
+                <MudButton Href="@BackHref" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">@BackText</MudButton>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>Hidden on the code/login/registration pages, where "home" would just bounce back.</summary>
+    [Parameter]
+    public bool ShowBackLink { get; set; } = true;
+
+    [Parameter]
+    public string BackHref { get; set; } = "/";
+
+    [Parameter]
+    public string BackText { get; set; } = "Zpět na úvod";
+
+    /// <summary>Wider card for pages with tables/forms (admin).</summary>
+    [Parameter]
+    public bool Wide { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

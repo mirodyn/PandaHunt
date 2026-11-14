@@ -1,0 +1,142 @@
+@page "/registrace"
+@attribute [ExcludeFromInteractiveRouting]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject GameSchedule Schedule
+@inject Phase0Gate Gate
+@inject AdminBootstrap AdminBootstrap
+@inject TimeProvider Time
+@inject Scoreboard Scoreboard
+@inject RegistrationBonuses Bonuses
+@inject NavigationManager Navigation
+
+<PageTitle>Registrace · PandaHunt IV</PageTitle>
+
+<PageShell Title="Registrace" ShowBackLink="false">
+    @if (!Schedule.IsRegistrationOpen)
+    {
+        @if (Schedule.IsRegistrationClosed)
+        {
+            <p>Registrace už je uzavřená.</p>
+        }
+        else if (Schedule.RegistrationOpensAt is { } opens)
+        {
+            <p>Registrace se otevře @Schedule.Format(opens).</p>
+        }
+    }
+    else
+    {
+        <EditForm Model="Input" FormName="registrace" OnValidSubmit="RegisterAsync" method="post" class="ph-form">
+            <DataAnnotationsValidator />
+
+            @if (errors.Count > 0)
+            {
+                <ul class="ph-form-errors" role="alert">
+                    @foreach (var error in errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+
+            <div class="ph-field">
+                <label for="nick">Přezdívka</label>
+                <InputText id="nick" @bind-Value="Input.UserName" autocomplete="username" class="ph-input" />
+                <ValidationMessage For="() => Input.UserName" />
+            </div>
+            <div class="ph-field">
+                <label for="email">E-mail</label>
+                <InputText id="email" type="email" @bind-Value="Input.Email" autocomplete="email" class="ph-input" />
+                <ValidationMessage For="() => Input.Email" />
+            </div>
+            <div class="ph-field">
+                <label for="password">Heslo</label>
+                <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="new-password" class="ph-input" />
+                <ValidationMessage For="() => Input.Password" />
+            </div>
+            <div class="ph-field">
+                <label for="password2">Heslo znovu</label>
+                <InputText id="password2" type="password" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" class="ph-input" />
+                <ValidationMessage For="() => Input.ConfirmPassword" />
+            </div>
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">
+                Zaregistrovat se
+            </MudButton>
+        </EditForm>
+
+        <p class="ph-form-alt">Už máš účet? <a href="@AccountEndpoints.LoginPath">Přihlas se.</a></p>
+    }
+</PageShell>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    private readonly List<string> errors = [];
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+
+        // Runs for both GET and POST, so the form can't be submitted without solving phase 0 either.
+        if (HttpContext.User.Identity?.IsAuthenticated == true)
+            Navigation.NavigateTo("/");
+        else if (!Gate.HasPassed(HttpContext))
+            Navigation.NavigateTo(AccountEndpoints.CodePath);
+    }
+
+    private async Task RegisterAsync()
+    {
+        if (!Schedule.IsRegistrationOpen || !Gate.HasPassed(HttpContext))
+            return;
+
+        var user = new ApplicationUser
+        {
+            UserName = Input.UserName.Trim(),
+            Email = Input.Email.Trim(),
+            RegisteredAtUtc = Time.GetUtcNow().UtcDateTime,
+        };
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            errors.AddRange(result.Errors.Select(e => e.Description));
+            return;
+        }
+
+        await AdminBootstrap.EnsureAdminRoleAsync(UserManager, user);
+
+        await Bonuses.AwardAsync(user, phase0Active: Gate.IsEnabled); // shown as a popup on the next page
+
+        Scoreboard.NotifyChanged(); // the new player shows up on open leaderboards
+        await SignInManager.SignInAsync(user, isPersistent: true);
+        Navigation.NavigateTo("/");
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Vyplň přezdívku.")]
+        [StringLength(AccountRules.MaxUserNameLength, MinimumLength = AccountRules.MinUserNameLength,
+            ErrorMessage = "Přezdívka musí mít 2 až 30 znaků.")]
+        public string UserName { get; set; } = "";
+
+        [Required(ErrorMessage = "Vyplň e-mail.")]
+        [EmailAddress(ErrorMessage = "Tohle nevypadá jako e-mail.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Vyplň heslo.")]
+        [StringLength(100, MinimumLength = AccountRules.MinPasswordLength,
+            ErrorMessage = "Heslo musí mít aspoň 6 znaků.")]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Zopakuj heslo.")]
+        [Compare(nameof(Password), ErrorMessage = "Hesla se neshodují.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

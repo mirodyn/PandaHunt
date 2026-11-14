@@ -1,0 +1,83 @@
+﻿@page "/"
+@attribute [Authorize]
+@implements IDisposable
+@inject GameSchedule Schedule
+@inject GameSettingsStore Settings
+
+<PageTitle>PandaHunt IV</PageTitle>
+
+<WanderingPanda />
+
+<main class="ph-home">
+    <h1 class="ph-display ph-title"><a href="/" class="ph-title-link" aria-current="page">PandaHunt IV</a></h1>
+    <p class="ph-tagline">Najdi pandu. Stopy tě dovedou.</p>
+
+    <nav class="ph-nav" aria-label="Hlavní navigace">
+        <MudButton Href="/sin-slavy" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large">Síň slávy</MudButton>
+
+        @if (CanHunt)
+        {
+            <MudButton Href="/lov" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">Lov</MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Disabled="true">Lov</MudButton>
+        }
+
+        <MudButton Href="/zebricek" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large">Žebříček</MudButton>
+
+        <form action="@AccountEndpoints.LogoutPath" method="post">
+            <AntiforgeryToken />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large">Odhlásit se</MudButton>
+        </form>
+    </nav>
+
+    <p class="ph-status">
+        @HuntStatus
+        <AuthorizeView> · Lovec <strong>@context.User.Identity?.Name</strong></AuthorizeView>
+        <AuthorizeView Roles="@AppRoles.Admin"> · <a href="/admin">Administrace</a></AuthorizeView>
+    </p>
+
+    <MessageBoardView />
+</main>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private Timer? scheduleTimer;
+    private bool isAdmin;
+
+    // Open while the hunt runs and afterwards (to see the results); admins can always preview it.
+    private bool CanHunt => Schedule.IsHuntOpen || Schedule.IsHuntOver || isAdmin;
+
+    private string HuntStatus => Schedule switch
+    {
+        { IsHuntOpen: true } => "Lov právě probíhá!",
+        { IsHuntOver: true } => "Lov skončil.",
+        { HuntStartsAt: { } start } => $"Lov začne {Schedule.Format(start)}",
+        _ => "Termín lovu bude brzy oznámen.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Settings.Changed += OnSettingsChanged;
+        isAdmin = (await AuthenticationState).User.IsInRole(AppRoles.Admin);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // Re-check the schedule periodically so the "Lov" button unlocks at the set time without a page reload.
+        if (firstRender)
+            scheduleTimer = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+    }
+
+    // An admin changed the settings: update right away.
+    private void OnSettingsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Settings.Changed -= OnSettingsChanged;
+        scheduleTimer?.Dispose();
+    }
+}

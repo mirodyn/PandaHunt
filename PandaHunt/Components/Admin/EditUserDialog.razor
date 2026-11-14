@@ -1,0 +1,81 @@
+@inject UserAdministration Users
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="pt-2">@* room for the first field's floating label *@
+            <MudTextField T="string" @bind-Value="userName" Label="Přezdívka" Variant="Variant.Outlined"
+                          MaxLength="AccountRules.MaxUserNameLength" />
+            <MudTextField T="string" @bind-Value="email" Label="E-mail" Variant="Variant.Outlined" InputType="InputType.Email" />
+            <MudTextField T="string" @bind-Value="newPassword" Label="Nové heslo" Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          HelperText="@($"Vyplň, jen když chceš heslo změnit (aspoň {AccountRules.MinPasswordLength} znaků). Hráč bude odhlášen.")" />
+            <div>
+                <MudSwitch T="bool" @bind-Value="isAdmin" Color="Color.Primary" Label="Admin" Disabled="AdminLocked" />
+                @if (AdminLockReason is not null)
+                {
+                    <MudText Typo="Typo.caption">@AdminLockReason</MudText>
+                }
+            </div>
+            @if (errors.Count > 0)
+            {
+                <ul class="ph-form-errors" role="alert">
+                    @foreach (var error in errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="saving">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="saving">Uložit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public UserRow User { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string CurrentUserId { get; set; } = "";
+
+    private string userName = "";
+    private string email = "";
+    private string? newPassword;
+    private bool isAdmin;
+    private IReadOnlyList<string> errors = [];
+    private bool saving;
+
+    private string? AdminLockReason =>
+        User.IsConfiguredAdmin ? "Admin z konfigurace (Admin:Emails) – nejde odebrat tady."
+        : User.Id == CurrentUserId && User.IsAdmin ? "Sám sobě admina odebrat nemůžeš."
+        : null;
+
+    private bool AdminLocked => AdminLockReason is not null;
+
+    protected override void OnInitialized()
+    {
+        userName = User.UserName;
+        email = User.Email ?? "";
+        isAdmin = User.IsAdmin;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            errors = await Users.UpdateAsync(new UserEdit(User.Id, userName, email, newPassword, isAdmin), CurrentUserId);
+            if (errors.Count == 0)
+                Dialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

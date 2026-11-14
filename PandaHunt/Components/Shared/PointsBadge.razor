@@ -1,0 +1,16 @@
+@* A point amount as players see it: the number with a green bamboo next to it. *@
+<span class="ph-pts @Class" title="@CzechText.Points(Value)">@Text<Bamboo /><span class="ph-sr-only"> @CzechText.Plural(Value, "bod", "body", "bodů")</span></span>
+
+@code {
+    [Parameter, EditorRequired]
+    public int Value { get; set; }
+
+    /// <summary>Show "+5" / "−3" (a change) instead of "5" (a total).</summary>
+    [Parameter]
+    public bool Signed { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string Text => Signed ? CzechText.SignedPoints(Value) : Value.ToString();
+}

@@ -1,0 +1,78 @@
+.ph-panda {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 96px;
+    /* Below the page content (which sits at z-index 1), so text and buttons are never covered. */
+    z-index: 0;
+    pointer-events: none;
+    will-change: transform;
+    /* Hidden until the script places it, so it doesn't flash in the corner. */
+    opacity: 0;
+    transition: opacity 0.6s ease;
+}
+
+    .ph-panda[data-state] {
+        opacity: 1;
+    }
+
+.ph-panda-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    transform-origin: 50% 95%;
+    animation: ph-waddle 0.55s ease-in-out infinite alternate;
+    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.12));
+}
+
+.black, .leg {
+    fill: #000;
+}
+
+.fur {
+    fill: #fff;
+    stroke: #000;
+    stroke-width: 3;
+}
+
+.eye {
+    fill: #fff;
+}
+
+.mouth {
+    fill: none;
+    stroke: #000;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+/* The pupils look where the panda is heading (--look-x / --look-y set from JS, range -1..1). */
+.pupils {
+    transform: translate(calc(var(--look-x, 0) * 1.4px), calc(var(--look-y, 0) * 1.4px));
+    transition: transform 0.3s ease;
+}
+
+.leg-left {
+    animation: ph-step 0.55s ease-in-out infinite alternate;
+}
+
+.leg-right {
+    animation: ph-step 0.55s ease-in-out infinite alternate-reverse;
+}
+
+/* Sitting still for a moment. */
+.ph-panda[data-state="resting"] .ph-panda-svg,
+.ph-panda[data-state="resting"] .leg {
+    animation-play-state: paused;
+}
+
+@keyframes ph-waddle {
+    from { transform: rotate(-5deg); }
+    to { transform: rotate(5deg); }
+}
+
+@keyframes ph-step {
+    from { transform: translateY(0); }
+    to { transform: translateY(-4px); }
+}
