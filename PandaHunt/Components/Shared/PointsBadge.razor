@@ -1,5 +1,5 @@
-@* A point amount as players see it: the number with a green bamboo next to it. *@
-<span class="ph-pts @Class" title="@CzechText.Points(Value)">@Text<Bamboo /><span class="ph-sr-only"> @CzechText.Plural(Value, "bod", "body", "bodů")</span></span>
+@* A point amount as players see it: the number with a green bamboo next to it (a broken red one when negative). *@
+<span class="ph-pts @Class" title="@CzechText.Points(Value)">@Text@if (Value < 0) { <BrokenBamboo /> } else { <Bamboo /> }<span class="ph-sr-only"> @CzechText.Plural(Value, "bod", "body", "bodů")</span></span>
 
 @code {
     [Parameter, EditorRequired]

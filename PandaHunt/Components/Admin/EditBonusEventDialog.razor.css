@@ -1,0 +1,48 @@
+/* Details on the left, the map on the right; stacked on narrow screens. */
+.ph-event-edit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.ph-event-edit-place {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ph-event-edit-map {
+    height: 18rem;
+}
+
+.ph-event-edit-hint {
+    margin: 0;
+    color: #555;
+    font-size: 0.8rem;
+}
+
+.ph-event-edit-coords {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+    .ph-event-edit-coords ::deep .mud-input-control {
+        flex: 1;
+    }
+
+    .ph-event-edit-coords ::deep .mud-button-root {
+        margin-top: 0.9rem;
+        white-space: nowrap;
+    }
+
+@media (max-width: 760px) {
+    .ph-event-edit {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ph-event-edit-map {
+        height: 15rem;
+    }
+}

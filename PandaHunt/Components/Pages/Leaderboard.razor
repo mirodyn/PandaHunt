@@ -5,11 +5,16 @@
 @inject Scoreboard Scoreboard
 @inject GameSchedule Schedule
 @inject GameSettingsStore Settings
+@inject IDialogService Dialogs
 
 <PageTitle>Žebříček · PandaHunt IV</PageTitle>
 
 <PageShell Title="Žebříček">
     <p>@Note</p>
+    @if (standings is { Count: > 0 })
+    {
+        <p class="ph-rank-hint">Klikni na lovce a uvidíš, za co má body.</p>
+    }
 
     @if (standings is null)
     {
@@ -33,10 +38,10 @@
                 @foreach (var row in standings)
                 {
                     var isMe = row.PlayerId == currentUserId;
-                    <tr class="@RowClass(row, isMe)" aria-current="@(isMe ? "true" : null)">
+                    <tr class="@RowClass(row, isMe)" aria-current="@(isMe ? "true" : null)" @onclick="() => ShowPlayerAsync(row, isMe)">
                         <td class="ph-display ph-rank-place">@row.Rank.</td>
                         <td class="ph-rank-name">
-                            @row.PlayerName
+                            <button type="button" class="ph-rank-player" @onclick="() => ShowPlayerAsync(row, isMe)" @onclick:stopPropagation="true">@row.PlayerName</button>
                             @if (isMe)
                             {
                                 <span class="ph-pill ph-pill-small ph-rank-me">ty</span>
@@ -70,6 +75,23 @@
         Scoreboard.Changed += OnScoreboardChanged;
         Settings.Changed += OnSettingsChanged;
         standings = await Scoreboard.GetStandingsAsync();
+    }
+
+    // Anyone can open anyone's point log.
+    private async Task ShowPlayerAsync(Standing row, bool isMe)
+    {
+        var parameters = new DialogParameters<PlayerPointsDialog>
+        {
+            { d => d.Player, row },
+            { d => d.IsMe, isMe },
+        };
+        await Dialogs.ShowAsync<PlayerPointsDialog>(row.PlayerName, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = true,
+        });
     }
 
     private static string RowClass(Standing row, bool isMe) =>

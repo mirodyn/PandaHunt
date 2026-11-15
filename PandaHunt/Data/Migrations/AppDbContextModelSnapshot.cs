@@ -212,6 +212,74 @@ namespace PandaHunt.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.BonusEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("EndsAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RadiusMeters")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ShowPlace")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("StartsAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BonusEvents");
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.BonusEventClaim", b =>
+                {
+                    b.Property<int>("EventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PlayerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AccuracyMeters")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ClaimedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DistanceMeters")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("EventId", "PlayerId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("BonusEventClaims");
+                });
+
             modelBuilder.Entity("PandaHunt.Data.GameSettings", b =>
                 {
                     b.Property<int>("Id")
@@ -229,6 +297,12 @@ namespace PandaHunt.Data.Migrations
 
                     b.Property<DateTimeOffset?>("HuntStartsAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("PandaFeedingBonusPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PandaPesteringPenaltyPoints")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Phase0BonusPoints")
                         .HasColumnType("INTEGER");
@@ -406,6 +480,25 @@ namespace PandaHunt.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.BonusEventClaim", b =>
+                {
+                    b.HasOne("PandaHunt.Data.BonusEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("PandaHunt.Data.Message", b =>

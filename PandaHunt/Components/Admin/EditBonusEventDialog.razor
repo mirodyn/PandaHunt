@@ -1,0 +1,264 @@
+@* Add or edit a bonus event: name, text, time and the place (picked on a map). *@
+@implements IAsyncDisposable
+@inject BonusEvents Events
+@inject GameSchedule Schedule
+@inject IJSRuntime JS
+
+<MudDialog>
+    <DialogContent>
+        <div class="ph-event-edit pt-2">@* room for the first field's floating label *@
+            <MudStack Spacing="3">
+                <MudTextField T="string"
+                              @bind-Value="name"
+                              Label="Název"
+                              Placeholder="např. Piknik na Petříně"
+                              Variant="Variant.Outlined"
+                              MaxLength="BonusEvent.MaxNameLength" />
+                <DateTimeSetting Label="Začíná" @bind-Value="startsAt" />
+                <DateTimeSetting Label="Končí" @bind-Value="endsAt" HelperText="Do té doby jde body vyzvednout." />
+                <MudNumericField T="int"
+                                 @bind-Value="points"
+                                 Label="Body"
+                                 Variant="Variant.Outlined"
+                                 Min="1"
+                                 Max="GameSettings.MaxBonusPoints"
+                                 HelperText="Dostane je každý hráč, který v tu dobu přijde na místo (jednou)." />
+                <MudTextField T="string"
+                              @bind-Value="description"
+                              Label="Popis pro hráče"
+                              Variant="Variant.Outlined"
+                              Lines="5"
+                              MaxLength="BonusEvent.MaxDescriptionLength"
+                              HelperText="Uvidí ho na stránce akce. Odstavce odděl prázdným řádkem. Když místo neukážeš na mapě, napiš sem, jak ho najít." />
+            </MudStack>
+
+            <div class="ph-event-edit-place">
+                <div @ref="mapElement" class="ph-map ph-event-edit-map" aria-label="Mapa: klikni na místo akce">
+                    @if (mapError is not null)
+                    {
+                        <div class="ph-map-error">@mapError</div>
+                    }
+                </div>
+                <p class="ph-event-edit-hint">Klikni do mapy na místo akce (špendlík jde i přetáhnout). Kruh ukazuje, jak blízko musí hráč být.</p>
+                <div class="ph-event-edit-coords">
+                    <MudTextField T="string"
+                                  Value="coordinates"
+                                  ValueChanged="OnCoordinatesTyped"
+                                  Label="Souřadnice"
+                                  Placeholder="50.087506, 14.421254"
+                                  Variant="Variant.Outlined"
+                                  Error="coordinatesError is not null"
+                                  ErrorText="@coordinatesError"
+                                  HelperText="Nebo je sem vlož z Mapy.com či Google Maps." />
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.MyLocation"
+                               Disabled="locating"
+                               OnClick="UseMyLocationAsync">@(locating ? "Hledám…" : "Kde jsem")</MudButton>
+                </div>
+                <MudNumericField T="int"
+                                 Value="radius"
+                                 ValueChanged="OnRadiusChanged"
+                                 Label="Okruh (m)"
+                                 Variant="Variant.Outlined"
+                                 Min="BonusEvent.MinRadiusMeters"
+                                 Max="BonusEvent.MaxRadiusMeters"
+                                 Step="10"
+                                 Immediate="true"
+                                 HelperText="Jak daleko od špendlíku ještě body dostane. Telefony se venku pletou o 5–20 m, uvnitř i víc." />
+                <MudSwitch T="bool" @bind-Value="showPlace" Color="Color.Primary" Label="Ukázat místo hráčům na mapě" />
+                <p class="ph-event-edit-hint">
+                    @(showPlace
+                        ? "Hráči uvidí mapu s místem a po neúspěšném pokusu i to, jak daleko od něj jsou."
+                        : "Místo je tajné: hráči mapu neuvidí a nedozví se ani, jak daleko jsou.")
+                </p>
+            </div>
+        </div>
+
+        @if (errors.Count > 0)
+        {
+            <ul class="ph-form-errors mt-3" role="alert">
+                @foreach (var error in errors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        }
+        @if (EditedEvent is { ClaimCount: > 0 } edited)
+        {
+            <p class="ph-event-edit-hint mt-3">
+                Body už vyzvedlo @edited.ClaimCount. Změny se jich netýkají – body, které dostali, zůstanou.
+            </p>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="saving">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="saving">Uložit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    /// <summary>The event to edit, or null for a new one.</summary>
+    [Parameter]
+    public BonusEventView? EditedEvent { get; set; }
+
+    private string? name;
+    private string? description;
+    private DateTime? startsAt;
+    private DateTime? endsAt;
+    private int points = 1;
+    private double? latitude;
+    private double? longitude;
+    private int radius = BonusEvent.DefaultRadiusMeters;
+    private bool showPlace;
+    private string? coordinates;
+    private string? coordinatesError;
+    private IReadOnlyList<string> errors = [];
+    private bool saving;
+    private bool locating;
+
+    private ElementReference mapElement;
+    private string? mapError;
+    private IJSObjectReference? module;
+    private IJSObjectReference? picker;
+    private DotNetObjectReference<EditBonusEventDialog>? self;
+
+    protected override void OnInitialized()
+    {
+        if (EditedEvent is { } e)
+        {
+            name = e.Name;
+            description = e.Description;
+            startsAt = Schedule.ToLocal(e.StartsAt);
+            endsAt = Schedule.ToLocal(e.EndsAt);
+            points = e.Points;
+            latitude = e.Latitude;
+            longitude = e.Longitude;
+            radius = e.RadiusMeters;
+            showPlace = e.ShowPlace;
+            coordinates = Geo.Format(e.Latitude, e.Longitude);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        self = DotNetObjectReference.Create(this);
+        try
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/bonus-map.js");
+            picker = await module.InvokeAsync<IJSObjectReference>("pickPlace", mapElement, latitude, longitude, radius, self);
+        }
+        catch (JSException)
+        {
+            mapError = "Mapu se nepodařilo načíst. Souřadnice ale můžeš vložit ručně.";
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>Called by bonus-map.js when the admin clicks the map or drags the pin.</summary>
+    [JSInvokable]
+    public void PlacePicked(double lat, double lng)
+    {
+        latitude = lat;
+        longitude = lng;
+        coordinates = Geo.Format(lat, lng);
+        coordinatesError = null;
+        StateHasChanged();
+    }
+
+    private async Task OnCoordinatesTyped(string? text)
+    {
+        coordinates = text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            coordinatesError = null;
+            return;
+        }
+        if (!Geo.TryParse(text, out var lat, out var lng))
+        {
+            coordinatesError = "Tohle nevypadá jako souřadnice. Zkus třeba 50.087506, 14.421254.";
+            return;
+        }
+
+        coordinatesError = null;
+        await MoveToAsync(lat, lng);
+    }
+
+    private async Task UseMyLocationAsync()
+    {
+        if (module is null)
+            return;
+
+        locating = true;
+        try
+        {
+            var fix = await module.InvokeAsync<LocationFix>("locate");
+            if (fix is { Latitude: { } lat, Longitude: { } lng })
+                await MoveToAsync(lat, lng);
+            else
+                coordinatesError = LocationFix.Explain(fix.Error);
+        }
+        finally
+        {
+            locating = false;
+        }
+    }
+
+    private async Task MoveToAsync(double lat, double lng)
+    {
+        latitude = lat;
+        longitude = lng;
+        coordinates = Geo.Format(lat, lng);
+        if (picker is not null)
+            await picker.InvokeVoidAsync("setPlace", lat, lng);
+    }
+
+    private async Task OnRadiusChanged(int value)
+    {
+        radius = value;
+        if (picker is not null && value is >= BonusEvent.MinRadiusMeters and <= BonusEvent.MaxRadiusMeters)
+            await picker.InvokeVoidAsync("setRadius", value);
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            errors = await Events.SaveAsync(new BonusEventEdit(
+                EditedEvent?.Id ?? 0, name ?? "", description, Schedule.FromLocal(startsAt), Schedule.FromLocal(endsAt),
+                latitude, longitude, radius, points, showPlace));
+            if (errors.Count == 0)
+                Dialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (picker is not null)
+            {
+                await picker.InvokeVoidAsync("dispose");
+                await picker.DisposeAsync();
+            }
+            if (module is not null)
+                await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Browser already gone.
+        }
+        self?.Dispose();
+    }
+}

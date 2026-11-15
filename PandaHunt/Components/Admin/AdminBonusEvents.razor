@@ -1,0 +1,137 @@
+@* Bonus events: plan them, and look back at who came to past ones. *@
+@implements IDisposable
+@inject BonusEvents Events
+@inject GameSchedule Schedule
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<section class="ph-admin-section">
+    <div class="ph-admin-heading">
+        <h2 class="ph-display">Bonusové akce</h2>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => EditAsync(null)">Přidat akci</MudButton>
+    </div>
+    <p>
+        Akce má čas a místo. Kdo v tu dobu přijde na místo a na stránce akce klikne na „Jsem tady – vyzvednout body“, dostane body
+        (každý jednou; v historii bodů u nich bude „Bonusová akce“ a její název). Na stránce <a href="/lov">Lov</a> je nad úkoly vidět
+        probíhající akce, jinak nejbližší naplánovaná. Akce se proto nesmí časově překrývat.
+        Admini si na stránce akce můžou polohu vyzkoušet, body ale nedostanou.
+    </p>
+
+    <MudTable T="BonusEventView"
+              Items="events"
+              Loading="events is null"
+              Dense="true"
+              Hover="true"
+              Elevation="0"
+              Breakpoint="Breakpoint.Sm"
+              Class="ph-admin-table">
+        <HeaderContent>
+            <MudTh>Akce</MudTh>
+            <MudTh>Kdy</MudTh>
+            <MudTh>Stav</MudTh>
+            <MudTh>Místo</MudTh>
+            <MudTh>Body</MudTh>
+            <MudTh>Vyzvedli</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @{ var state = context.StateAt(Schedule.Now); }
+            <MudTd DataLabel="Akce"><a href="@BonusEvents.PageOf(context.Id)"><strong>@context.Name</strong></a></MudTd>
+            <MudTd DataLabel="Kdy">@Schedule.FormatRange(context.StartsAt, context.EndsAt)</MudTd>
+            <MudTd DataLabel="Stav">
+                <span class="ph-pill ph-pill-small @(state == BonusEventState.Live ? "on" : null)">@StateText(state)</span>
+            </MudTd>
+            <MudTd DataLabel="Místo">
+                <a href="@OsmLink(context)" target="_blank" rel="noopener" title="Otevřít na OpenStreetMap">@Geo.Format(context.Latitude, context.Longitude)</a>
+                <span class="ph-admin-muted">· @context.RadiusMeters m · @(context.ShowPlace ? "na mapě" : "tajné")</span>
+            </MudTd>
+            <MudTd DataLabel="Body">@context.Points</MudTd>
+            <MudTd DataLabel="Vyzvedli">@context.ClaimCount</MudTd>
+            <MudTd Class="ph-admin-row-actions">
+                <MudIconButton Icon="@Icons.Material.Filled.People" Size="Size.Small"
+                               aria-label="@($"Kdo vyzvedl {context.Name}")" title="Kdo vyzvedl body"
+                               OnClick="() => ClaimsAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               aria-label="@($"Upravit {context.Name}")" title="Upravit"
+                               OnClick="() => EditAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small"
+                               aria-label="@($"Smazat {context.Name}")" title="Smazat"
+                               OnClick="() => DeleteAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Zatím žádné akce.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</section>
+
+@code {
+    private IReadOnlyList<BonusEventView>? events;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Events.Changed += OnEventsChanged;
+        events = await Events.GetAllAsync();
+    }
+
+    private static string StateText(BonusEventState state) => state switch
+    {
+        BonusEventState.Planned => "Naplánovaná",
+        BonusEventState.Live => "Probíhá",
+        _ => "Skončila",
+    };
+
+    private static string OsmLink(BonusEventView e) =>
+        FormattableString.Invariant($"https://www.openstreetmap.org/?mlat={e.Latitude:0.######}&mlon={e.Longitude:0.######}#map=17/{e.Latitude:0.######}/{e.Longitude:0.######}");
+
+    private async Task EditAsync(BonusEventView? bonusEvent)
+    {
+        var parameters = new DialogParameters<EditBonusEventDialog> { { d => d.EditedEvent, bonusEvent } };
+        var dialog = await Dialogs.ShowAsync<EditBonusEventDialog>(bonusEvent is null ? "Nová bonusová akce" : $"Upravit akci {bonusEvent.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await dialog.Result is { Canceled: false })
+            Snackbar.Add(bonusEvent is null ? "Akce přidána." : "Akce upravena.", Severity.Success);
+    }
+
+    private async Task ClaimsAsync(BonusEventView bonusEvent)
+    {
+        var parameters = new DialogParameters<BonusClaimsDialog> { { d => d.EventId, bonusEvent.Id } };
+        await Dialogs.ShowAsync<BonusClaimsDialog>($"Kdo vyzvedl: {bonusEvent.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+    }
+
+    private async Task DeleteAsync(BonusEventView bonusEvent)
+    {
+        var claims = bonusEvent.ClaimCount > 0 ? $" Zmizí i záznam o tom, kdo přišel ({bonusEvent.ClaimCount})." : "";
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Smazat akci",
+            $"Opravdu smazat akci „{bonusEvent.Name}“?{claims} Body, které za ni hráči dostali, zůstanou. Nejde to vrátit.",
+            yesText: "Smazat",
+            cancelText: "Zrušit");
+        if (confirmed != true)
+            return;
+
+        await Events.DeleteAsync(bonusEvent.Id);
+        Snackbar.Add($"Akce „{bonusEvent.Name}“ smazána.", Severity.Success);
+    }
+
+    // Changed here, in another tab, or a player just claimed: reload.
+    private void OnEventsChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            events = await Events.GetAllAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    public void Dispose() => Events.Changed -= OnEventsChanged;
+}

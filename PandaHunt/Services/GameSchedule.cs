@@ -40,6 +40,16 @@ public sealed class GameSchedule(GameSettingsStore settings, TimeProvider time, 
     public string Format(DateTime utc) =>
         Format(new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)));
 
+    /// <summary>"24. 12. 2026, 16:00–18:00" (same day) or "24. 12. 2026 v 22:00 – 25. 12. 2026 v 2:00".</summary>
+    public string FormatRange(DateTimeOffset from, DateTimeOffset to)
+    {
+        var start = TimeZoneInfo.ConvertTime(from, zone);
+        var end = TimeZoneInfo.ConvertTime(to, zone);
+        return start.Date == end.Date
+            ? $"{start.ToString("d. M. yyyy", Czech)}, {start.ToString("H:mm", Czech)}–{end.ToString("H:mm", Czech)}"
+            : $"{Format(from)} – {Format(to)}";
+    }
+
     /// <summary>Formats just the date, e.g. "24. 12. 2026".</summary>
     public string FormatDate(DateTimeOffset value) =>
         TimeZoneInfo.ConvertTime(value, zone).ToString("d. M. yyyy", Czech);

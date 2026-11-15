@@ -329,6 +329,11 @@ a {
     gap: 0.35rem;
 }
 
+.ph-admin-muted {
+    color: #555;
+    font-size: 0.8rem;
+}
+
 .ph-admin-checklist {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
@@ -353,6 +358,55 @@ a {
 .ph-admin-row-actions {
     white-space: nowrap;
     text-align: right;
+}
+
+/* ---------- Maps (bonus events; Leaflet builds the inside, so these can't be scoped) ---------- */
+
+.ph-map {
+    position: relative;
+    isolation: isolate; /* keeps Leaflet's z-indexes inside the map */
+    height: 16rem;
+    border: 3px solid #000;
+    background: #e6e6e6;
+}
+
+    /* Black & white like the rest of the app. */
+    .ph-map .leaflet-tile-pane {
+        filter: grayscale(1) contrast(1.05);
+    }
+
+    .ph-map .leaflet-control-zoom a {
+        color: #000;
+    }
+
+.ph-map-pin span {
+    display: block;
+    box-sizing: border-box;
+    width: 26px;
+    height: 26px;
+    border-radius: 50% 50% 50% 0;
+    background: #000;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    transform: rotate(-45deg);
+    transform-origin: 50% 50%;
+}
+
+    .ph-map-pin span::after {
+        content: "";
+        position: absolute;
+        inset: 7px;
+        border-radius: 50%;
+        background: #fff;
+    }
+
+.ph-map-error {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    padding: 1rem;
+    text-align: center;
+    color: #555;
 }
 
 /* ---------- Points: number + green bamboo (PointsBadge) ---------- */

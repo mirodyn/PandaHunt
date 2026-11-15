@@ -1,0 +1,51 @@
+@* Who claimed a bonus event, when, and how far from the pin they were. *@
+@inject BonusEvents Events
+@inject GameSchedule Schedule
+
+<MudDialog>
+    <DialogContent>
+        @if (claims is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (claims.Count == 0)
+        {
+            <MudText>Zatím nikdo.</MudText>
+        }
+        else
+        {
+            <MudTable T="BonusClaimView" Items="claims" Dense="true" Elevation="0" Breakpoint="Breakpoint.Xs" Class="ph-admin-table">
+                <HeaderContent>
+                    <MudTh>Hráč</MudTh>
+                    <MudTh>Kdy</MudTh>
+                    <MudTh>Od špendlíku</MudTh>
+                    <MudTh>Body</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Hráč"><strong>@context.PlayerName</strong></MudTd>
+                    <MudTd DataLabel="Kdy">@Schedule.Format(context.ClaimedAtUtc)</MudTd>
+                    <MudTd DataLabel="Od špendlíku">
+                        @CzechText.Distance(context.DistanceMeters)
+                        <span class="ph-admin-muted" title="Přesnost polohy podle telefonu">(±@CzechText.Distance(context.AccuracyMeters))</span>
+                    </MudTd>
+                    <MudTd DataLabel="Body">@CzechText.SignedPoints(context.Points)</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => Dialog.Close()">Zavřít</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public int EventId { get; set; }
+
+    private IReadOnlyList<BonusClaimView>? claims;
+
+    protected override async Task OnInitializedAsync() => claims = await Events.GetClaimsAsync(EventId);
+}

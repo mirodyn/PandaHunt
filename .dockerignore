@@ -23,3 +23,8 @@
 **/values.dev.yaml
 LICENSE
 README.md
+# Local data: never ship the dev database into the image
+**/App_Data
+**/*.db
+**/*.db-shm
+**/*.db-wal

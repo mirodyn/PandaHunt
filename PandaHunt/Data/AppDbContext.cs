@@ -15,6 +15,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 
     public DbSet<TaskCompletion> TaskCompletions => Set<TaskCompletion>();
 
+    public DbSet<BonusEvent> BonusEvents => Set<BonusEvent>();
+
+    public DbSet<BonusEventClaim> BonusEventClaims => Set<BonusEventClaim>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -60,6 +64,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
                 .HasForeignKey(c => c.TaskId)
                 .OnDelete(DeleteBehavior.Cascade);
             completion.HasOne(c => c.Player)
+                .WithMany()
+                .HasForeignKey(c => c.PlayerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<BonusEvent>(bonusEvent =>
+        {
+            bonusEvent.Property(e => e.Name).HasMaxLength(BonusEvent.MaxNameLength);
+            bonusEvent.Property(e => e.Description).HasMaxLength(BonusEvent.MaxDescriptionLength);
+        });
+
+        builder.Entity<BonusEventClaim>(claim =>
+        {
+            claim.HasKey(c => new { c.EventId, c.PlayerId });
+            claim.HasOne(c => c.Event)
+                .WithMany()
+                .HasForeignKey(c => c.EventId)
+                .OnDelete(DeleteBehavior.Cascade);
+            claim.HasOne(c => c.Player)
                 .WithMany()
                 .HasForeignKey(c => c.PlayerId)
                 .OnDelete(DeleteBehavior.Cascade);

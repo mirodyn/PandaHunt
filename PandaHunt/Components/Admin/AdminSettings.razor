@@ -65,6 +65,31 @@
                   Class="mt-4" />
 </section>
 
+<section class="ph-admin-section">
+    <h2 class="ph-display">Panda na úvodní stránce</h2>
+    <p>Minihra na úvodní stránce: klik na prázdné místo vypěstuje bambus a panda ho sní. Kdo jí dá @PandaFeeding.Goal bambusů
+        (a mezi dvěma nečeká víc než @((int)PandaFeeding.Timeout.TotalSeconds) s), dostane body – každý jen jednou.</p>
+    <MudNumericField T="int"
+                     @bind-Value="pandaFeedingBonus"
+                     Label="Body za nakrmení pandy"
+                     Variant="Variant.Outlined"
+                     Min="0"
+                     Max="GameSettings.MaxBonusPoints"
+                     HelperText="0 = minihra jde hrát, ale body nedává."
+                     Class="ph-admin-narrow" />
+    <p class="mt-4">A naopak: kdo na pandu klikne víc než @PandaTalk.PatienceClicks× (bez @((int)PandaTalk.CalmDown.TotalSeconds)s pauzy),
+        začne ji otravovat. Kdo projde celým řetězcem jejích naštvaných vět (@PandaTalk.AnnoyedChain.Count), přijde o body – každý jen jednou.
+        Texty jsou v souboru Services/PandaTalk.cs.</p>
+    <MudNumericField T="int"
+                     @bind-Value="pandaPesteringPenalty"
+                     Label="Srážka za otravování pandy (body)"
+                     Variant="Variant.Outlined"
+                     Min="0"
+                     Max="GameSettings.MaxBonusPoints"
+                     HelperText="Kolik bodů se strhne. 0 = žádná srážka."
+                     Class="ph-admin-narrow" />
+</section>
+
 @if (errors.Count > 0)
 {
     <ul class="ph-form-errors" role="alert">
@@ -85,6 +110,8 @@
     private string? code;
     private int phase0Bonus;
     private int firstPlayerBonus;
+    private int pandaFeedingBonus;
+    private int pandaPesteringPenalty;
     private DateTime? registrationOpens;
     private DateTime? registrationCloses;
     private DateTime? huntStarts;
@@ -135,6 +162,8 @@
         code = s.Phase0Code;
         phase0Bonus = s.Phase0BonusPoints;
         firstPlayerBonus = s.FirstPlayerBonusPoints;
+        pandaFeedingBonus = s.PandaFeedingBonusPoints;
+        pandaPesteringPenalty = s.PandaPesteringPenaltyPoints;
         registrationOpens = Schedule.ToLocal(s.RegistrationOpensAt);
         registrationCloses = Schedule.ToLocal(s.RegistrationClosesAt);
         huntStarts = Schedule.ToLocal(s.HuntStartsAt);
@@ -153,6 +182,8 @@
             s.Phase0Code = code ?? "";
             s.Phase0BonusPoints = phase0Bonus;
             s.FirstPlayerBonusPoints = firstPlayerBonus;
+            s.PandaFeedingBonusPoints = pandaFeedingBonus;
+            s.PandaPesteringPenaltyPoints = pandaPesteringPenalty;
             s.RegistrationOpensAt = Schedule.FromLocal(registrationOpens);
             s.RegistrationClosesAt = Schedule.FromLocal(registrationCloses);
             s.HuntStartsAt = Schedule.FromLocal(huntStarts);

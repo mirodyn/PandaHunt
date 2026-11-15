@@ -1,8 +1,46 @@
-@* A panda that walks around the whole screen, bouncing from edge to edge. Movement lives in wwwroot/js/panda.js. *@
+@*
+    A panda that walks around the whole screen, bouncing from edge to edge, plus two little games:
+    - feeding: clicking an empty spot grows a bamboo there, the panda walks over and eats it, and a dot above
+      her head turns green (PandaFeeding);
+    - talking: clicking on her shows a speech bubble; pester her too long and it costs a point (PandaTalk).
+    Movement and drawing live in wwwroot/js/panda.js; counting, texts and points on the server.
+*@
 @implements IAsyncDisposable
+@using System.Security.Claims
 @inject IJSRuntime JS
+@inject PandaFeeding Feeding
+@inject PandaPestering Pestering
+@inject TimeProvider Time
+
+<div @ref="sprout" class="ph-sprout" aria-hidden="true">
+    <svg class="ph-sprout-svg" viewBox="0 0 40 72" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="20" cy="70" rx="13" ry="2.5" fill="rgba(0, 0, 0, 0.15)" />
+        <path d="M24 19C29 12 34 9 39.5 8.5 37.5 15 31.5 19 24 19Z" fill="#66bb6a" />
+        <path d="M16 40C11 34 6 32 0.5 32 2.5 38 8.5 41 16 40Z" fill="#66bb6a" />
+        <rect x="15" y="2" width="10" height="21" rx="3" fill="#4caf50" />
+        <rect x="15" y="25" width="10" height="21" rx="3" fill="#4caf50" />
+        <rect x="15" y="48" width="10" height="22" rx="3" fill="#4caf50" />
+        <rect x="13.5" y="21.5" width="13" height="4" rx="2" fill="#2e7d32" />
+        <rect x="13.5" y="44.5" width="13" height="4" rx="2" fill="#2e7d32" />
+        <rect x="17" y="4.5" width="2" height="15" rx="1" fill="#a5d6a7" />
+        <rect x="17" y="27.5" width="2" height="15" rx="1" fill="#a5d6a7" />
+        <rect x="17" y="50.5" width="2" height="16" rx="1" fill="#a5d6a7" />
+    </svg>
+</div>
+
+@* Speech bubble: separate from the panda so it can sit above the page content (she walks below it). *@
+<div @ref="bubble" class="ph-bubble" aria-hidden="true">
+    <div class="ph-bubble-text"></div>
+</div>
 
 <div @ref="panda" class="ph-panda" aria-hidden="true">
+    @* Feeding progress: one dot turns green per eaten bamboo. *@
+    <div class="ph-panda-dots">
+        @for (var i = 0; i < PandaFeeding.Goal; i++)
+        {
+            <span class="ph-panda-dot"></span>
+        }
+    </div>
     <svg class="ph-panda-svg" viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg">
         <ellipse class="leg leg-left" cx="42" cy="112" rx="12" ry="14" />
         <ellipse class="leg leg-right" cx="78" cy="112" rx="12" ry="14" />
@@ -26,17 +64,74 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
     private ElementReference panda;
+    private ElementReference sprout;
+    private ElementReference bubble;
     private IJSObjectReference? module;
     private IJSObjectReference? walker;
+    private DotNetObjectReference<WanderingPanda>? self;
+    private FeedingStreak? streak;
+    private PesterStreak? pester;
+    private string? playerId;
+    private bool isAdmin;
+
+    /// <summary>What the browser gets back after each eaten bamboo: how many dots to colour.</summary>
+    public sealed record FeedState(int Count, int Goal);
+
+    /// <summary>What the panda says when clicked, and whether she's annoyed (drawn differently).</summary>
+    public sealed record PandaReply(string Text, bool Annoyed);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
             return;
 
+        if (AuthenticationState is not null)
+        {
+            var user = (await AuthenticationState).User;
+            playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            isAdmin = user.IsInRole(AppRoles.Admin);
+        }
+
+        streak = new FeedingStreak(Time);
+        pester = new PesterStreak(Time);
+        self = DotNetObjectReference.Create(this);
         module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/panda.js");
-        walker = await module.InvokeAsync<IJSObjectReference>("start", panda);
+        walker = await module.InvokeAsync<IJSObjectReference>("start", panda, sprout, bubble, self);
+    }
+
+    /// <summary>Called by panda.js when someone clicks on the panda.</summary>
+    [JSInvokable]
+    public async Task<PandaReply> PandaClicked()
+    {
+        if (pester is null)
+            return new PandaReply(PandaTalk.Phrases[0], false);
+
+        var (text, annoyed, chainFinished) = pester.Clicked();
+
+        // Went through the whole annoyed chain: that costs a point (only players, only once).
+        if (chainFinished && playerId is not null && !isAdmin)
+            await Pestering.TryPenalizeAsync(playerId);
+        return new PandaReply(text, annoyed);
+    }
+
+    /// <summary>Called by panda.js each time the panda finishes a bamboo.</summary>
+    [JSInvokable]
+    public async Task<FeedState> BambooEaten()
+    {
+        if (streak is null)
+            return new FeedState(0, PandaFeeding.Goal);
+
+        if (!streak.Eaten())
+            return new FeedState(streak.Count, PandaFeeding.Goal);
+
+        // Five in a row! Organisers can play too, but only players get points.
+        if (playerId is not null && !isAdmin)
+            await Feeding.TryAwardAsync(playerId);
+        return new FeedState(PandaFeeding.Goal, PandaFeeding.Goal);
     }
 
     public async ValueTask DisposeAsync()
@@ -55,5 +150,6 @@
         {
             // Browser already gone; nothing to clean up.
         }
+        self?.Dispose();
     }
 }

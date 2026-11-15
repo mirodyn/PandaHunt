@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,16 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("Connection string 'Default' is missing.");
 EnsureSqliteDirectoryExists(connectionString, builder.Environment.ContentRootPath);
 builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlite(connectionString));
+
+// Keys that sign the login and phase-0 cookies. In a container they must sit on the persistent volume
+// (DataProtection:KeysPath), otherwise every deploy logs everyone out. Locally the default per-user store is fine.
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(keysPath))
+{
+    builder.Services.AddDataProtection()
+        .SetApplicationName("PandaHunt")
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+}
 
 // Accounts
 builder.Services.AddCascadingAuthenticationState();
@@ -74,6 +85,9 @@ builder.Services.AddSingleton<MessageBoard>();
 builder.Services.AddSingleton<Scoreboard>();
 builder.Services.AddSingleton<HuntTasks>();
 builder.Services.AddSingleton<RegistrationBonuses>();
+builder.Services.AddSingleton<PandaFeeding>();
+builder.Services.AddSingleton<PandaPestering>();
+builder.Services.AddSingleton<BonusEvents>();
 
 var app = builder.Build();
 

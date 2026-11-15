@@ -25,6 +25,12 @@ public class GameSettings
     /// <summary>Points for the very first player to register. 0 = no bonus.</summary>
     public int FirstPlayerBonusPoints { get; set; } = 1;
 
+    /// <summary>Points for feeding the panda 5 bamboos on the home page (once per player). 0 = no points.</summary>
+    public int PandaFeedingBonusPoints { get; set; } = 1;
+
+    /// <summary>Points taken (once per player) for clicking the panda through her whole annoyed chain. 0 = none.</summary>
+    public int PandaPesteringPenaltyPoints { get; set; } = 1;
+
     // Date/time switches. null = no limit, except HuntStartsAt where null = hunt not scheduled yet.
     public DateTimeOffset? RegistrationOpensAt { get; set; }
     public DateTimeOffset? RegistrationClosesAt { get; set; }

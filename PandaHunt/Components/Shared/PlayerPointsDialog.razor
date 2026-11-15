@@ -1,0 +1,53 @@
+@* Anyone's point log, opened from the leaderboard: how they got (and lost) their points. *@
+@inject Scoreboard Scoreboard
+
+<MudDialog>
+    <TitleContent>
+        <div class="ph-player-title">
+            <span class="ph-display ph-player-name">@Player.PlayerName</span>
+            @if (IsMe)
+            {
+                <span class="ph-pill ph-pill-small">ty</span>
+            }
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="ph-player-summary">
+            <PointsBadge Value="Player.Points" Class="ph-display ph-player-total" />
+            <span class="ph-player-rank">@Player.Rank. místo v žebříčku</span>
+        </div>
+
+        @if (history is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="my-4" />
+        }
+        else if (history.Count == 0)
+        {
+            <p class="ph-player-empty">Zatím žádné body.</p>
+        }
+        else
+        {
+            <PointsHistory Entries="history" MaxHeight="min(22rem, 50vh)" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => Dialog.Close()">Zavřít</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Standing Player { get; set; } = default!;
+
+    /// <summary>Is this the logged-in player's own row?</summary>
+    [Parameter]
+    public bool IsMe { get; set; }
+
+    private IReadOnlyList<PointEntryView>? history;
+
+    protected override async Task OnInitializedAsync() =>
+        history = await Scoreboard.GetPlayerHistoryAsync(Player.PlayerId);
+}

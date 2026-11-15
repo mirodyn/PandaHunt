@@ -70,6 +70,10 @@ public sealed class GameSettingsStore(IDbContextFactory<AppDbContext> dbFactory)
             errors.Add($"Bonus za registraci musí být 0 až {GameSettings.MaxBonusPoints} bodů.");
         if (s.FirstPlayerBonusPoints is < 0 or > GameSettings.MaxBonusPoints)
             errors.Add($"Bonus pro prvního registrovaného musí být 0 až {GameSettings.MaxBonusPoints} bodů.");
+        if (s.PandaFeedingBonusPoints is < 0 or > GameSettings.MaxBonusPoints)
+            errors.Add($"Body za nakrmení pandy musí být 0 až {GameSettings.MaxBonusPoints}.");
+        if (s.PandaPesteringPenaltyPoints is < 0 or > GameSettings.MaxBonusPoints)
+            errors.Add($"Srážka za otravování pandy musí být 0 až {GameSettings.MaxBonusPoints} bodů.");
         if (s.RegistrationOpensAt is { } opens && s.RegistrationClosesAt is { } closes && closes <= opens)
             errors.Add("Registrace se musí zavírat až po otevření.");
         if (s.HuntStartsAt is { } starts && s.HuntEndsAt is { } ends && ends <= starts)

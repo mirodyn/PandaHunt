@@ -19,6 +19,8 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
     public const int MaxPointsPerEntry = 10_000;
     public const int HistoryCount = 500;
 
+    private readonly SemaphoreSlim onceGate = new(1, 1);
+
     /// <summary>Raised after points change or the list of players changes (register, rename, delete, role).</summary>
     public event Action? Changed;
 
@@ -116,6 +118,30 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
 
         Changed?.Invoke();
         return [];
+    }
+
+    /// <summary>
+    /// Like <see cref="AwardAsync"/>, but at most once per player and <paramref name="source"/> (minigame bonuses,
+    /// penalties, ...). Returns true when the points were given now.
+    /// </summary>
+    public async Task<bool> AwardOnceAsync(string playerId, int points, string comment, string source, CancellationToken cancellationToken = default)
+    {
+        // One at a time, so two tabs finishing together can't both pass the "already has it?" check.
+        await onceGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using (var db = await dbFactory.CreateDbContextAsync(cancellationToken))
+            {
+                if (await db.PointEntries.AnyAsync(e => e.PlayerId == playerId && e.Source == source, cancellationToken))
+                    return false;
+            }
+
+            return (await AwardAsync(playerId, points, comment, source, cancellationToken)).Count == 0;
+        }
+        finally
+        {
+            onceGate.Release();
+        }
     }
 
     /// <summary>The player's point changes they haven't been shown yet (for the "you got points" popup), oldest first.</summary>

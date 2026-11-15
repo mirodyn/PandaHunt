@@ -6,6 +6,7 @@
 @inject GameSettingsStore Settings
 @inject HuntTasks Tasks
 @inject Scoreboard Scoreboard
+@inject BonusEvents Events
 
 <PageTitle>Lov · PandaHunt IV</PageTitle>
 
@@ -34,100 +35,138 @@ else
         }
 
         <div class="ph-hunt">
-            <section class="ph-hunt-tasks" aria-labelledby="ph-tasks-heading">
-                <h2 id="ph-tasks-heading" class="ph-display">Úkoly</h2>
-                @if (tasks is null)
+            @* DOM order = phone order (intro, buttons, tasks, points); on wider screens the grid in
+               Hunt.razor.css puts intro, points and buttons in the right-hand column. *@
+            <div class="ph-hunt-intro">
+                @foreach (var paragraph in IntroParagraphs)
                 {
-                    <p>Načítám…</p>
+                    <p>@paragraph</p>
                 }
-                else if (tasks.Count == 0)
-                {
-                    <p>Úkoly se brzy objeví.</p>
-                }
-                else
-                {
-                    <ul class="ph-tasks">
-                        @foreach (var task in tasks)
-                        {
-                            var state = StateOf(task);
-                            var type = TaskTypes.Get(task.Type);
-                            var link = OpenLink(task, state);
-                            var external = link is not null && TaskPages.IsExternal(link);
-                            <li>
-                                @* An <a> without href (task not open yet / no page) is just a plain, unclickable tile. *@
-                                <a class="ph-task @StateClass(state)"
-                                   href="@link"
-                                   target="@(external ? "_blank" : null)"
-                                   rel="@(external ? "noopener" : null)">
-                                    <div class="ph-task-icons">
-                                        <MudIcon Icon="@type.Icon" Title="@type.Label" Class="ph-task-type" />
-                                        <MudIcon Icon="@(state == TaskState.Done ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
-                                                 Title="@(state == TaskState.Done ? "Splněno" : "Nesplněno")"
-                                                 Class="ph-task-state" />
-                                    </div>
-                                    <div class="ph-display ph-task-name">@task.Name</div>
-                                    <div class="ph-task-status">
-                                        <span>@StatusText(task, state)</span>
-                                        @if (link is not null)
-                                        {
-                                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="ph-task-go" />
-                                        }
-                                    </div>
-                                </a>
-                            </li>
-                        }
-                    </ul>
-                }
-            </section>
+            </div>
 
-            <aside class="ph-hunt-side">
-                <div class="ph-hunt-intro">
-                    @foreach (var paragraph in IntroParagraphs)
+            <nav class="ph-hunt-buttons" aria-label="Další stránky">
+                <MudButton Href="/zebricek" Variant="Variant.Outlined" Color="Color.Primary">Žebříček</MudButton>
+                @* TODO: Href="/pravidla" once the rules page exists. *@
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="true" title="Pravidla budou brzy">Pravidla</MudButton>
+            </nav>
+
+            <div class="ph-hunt-main">
+                @* Bonus event: the running one, else the next planned one, else "none right now". *@
+                @if (events is not null)
+                {
+                    var bonus = BonusEvents.CurrentOf(events, Schedule.Now);
+                    if (bonus is null)
                     {
-                        <p>@paragraph</p>
+                        <div class="ph-bonus ph-bonus-none">
+                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Class="ph-bonus-icon" />
+                            <div class="ph-bonus-text">
+                                <div class="ph-bonus-kicker">Bonusová akce</div>
+                                <div class="ph-display ph-bonus-name">Teď žádná neprobíhá</div>
+                            </div>
+                        </div>
                     }
-                </div>
-
-                <section class="ph-points" aria-labelledby="ph-points-heading">
-                    <h2 id="ph-points-heading" class="ph-display">Tvoje body</h2>
-                    <div class="ph-points-total">
-                        <PointsBadge Value="Total" Class="ph-display" />
-                    </div>
-                    @if (rank is not null)
+                    else
                     {
-                        <div class="ph-points-rank">@rank. místo v žebříčku</div>
-                    }
-
-                    @if (history is { Count: > 0 })
-                    {
-                        <ul class="ph-points-history" tabindex="0" aria-label="Historie bodů">
-                            @foreach (var entry in history)
-                            {
-                                <li>
-                                    <div class="ph-points-line">
-                                        <strong><PointsBadge Value="entry.Points" Signed="true" /></strong>
-                                        <span class="ph-points-when">@Schedule.FormatDate(entry.CreatedAtUtc)</span>
-                                    </div>
-                                    @if (entry.Comment is { } comment)
+                        var live = bonus.StateAt(Schedule.Now) == BonusEventState.Live;
+                        var claimed = claimedEvents.Contains(bonus.Id);
+                        <a class="ph-bonus @(live ? "ph-bonus-live" : "ph-bonus-planned")" href="@BonusEvents.PageOf(bonus.Id)">
+                            <MudIcon Icon="@(claimed ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.LocationOn)"
+                                     Title="@(claimed ? "Body máš" : "Bonusová akce")"
+                                     Class="ph-bonus-icon" />
+                            <div class="ph-bonus-text">
+                                <div class="ph-bonus-kicker">
+                                    @if (live)
                                     {
-                                        <div class="ph-points-comment">@comment</div>
+                                        <span class="ph-bonus-dot" aria-hidden="true"></span>
                                     }
+                                    @(live ? "Probíhá bonusová akce" : "Chystá se bonusová akce")
+                                </div>
+                                <div class="ph-display ph-bonus-name">@bonus.Name</div>
+                                <div class="ph-bonus-when">
+                                    @(live ? $"Končí {Schedule.Format(bonus.EndsAt)}" : Schedule.FormatRange(bonus.StartsAt, bonus.EndsAt))
+                                </div>
+                            </div>
+                            <div class="ph-bonus-side">
+                                @if (claimed)
+                                {
+                                    <span class="ph-bonus-claimed">Body máš</span>
+                                }
+                                else
+                                {
+                                    <PointsBadge Value="bonus.Points" Signed="true" Class="ph-display" />
+                                }
+                                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="ph-bonus-go" />
+                            </div>
+                        </a>
+                    }
+                }
+
+                <section class="ph-hunt-tasks" aria-labelledby="ph-tasks-heading">
+                    <h2 id="ph-tasks-heading" class="ph-display">Úkoly</h2>
+                    @if (tasks is null)
+                    {
+                        <p>Načítám…</p>
+                    }
+                    else if (tasks.Count == 0)
+                    {
+                        <p>Úkoly se brzy objeví.</p>
+                    }
+                    else
+                    {
+                        <ul class="ph-tasks">
+                            @foreach (var task in tasks)
+                            {
+                                var state = StateOf(task);
+                                var type = TaskTypes.Get(task.Type);
+                                var link = OpenLink(task, state);
+                                var external = link is not null && TaskPages.IsExternal(link);
+                                <li>
+                                    @* An <a> without href (task not open yet / no page) is just a plain, unclickable tile. *@
+                                    <a class="ph-task @StateClass(state)"
+                                       href="@link"
+                                       target="@(external ? "_blank" : null)"
+                                       rel="@(external ? "noopener" : null)">
+                                        <div class="ph-task-icons">
+                                            <MudIcon Icon="@type.Icon" Title="@type.Label" Class="ph-task-type" />
+                                            <MudIcon Icon="@(state == TaskState.Done ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                                                     Title="@(state == TaskState.Done ? "Splněno" : "Nesplněno")"
+                                                     Class="ph-task-state" />
+                                        </div>
+                                        <div class="ph-display ph-task-name">@task.Name</div>
+                                        <div class="ph-task-status">
+                                            <span>@StatusText(task, state)</span>
+                                            @if (link is not null)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="ph-task-go" />
+                                            }
+                                        </div>
+                                    </a>
                                 </li>
                             }
                         </ul>
                     }
-                    else if (history is not null)
-                    {
-                        <p class="ph-points-empty">Zatím žádné body. První přijdou se splněným úkolem.</p>
-                    }
                 </section>
+            </div>
 
-                <nav class="ph-hunt-buttons" aria-label="Další stránky">
-                    <MudButton Href="/zebricek" Variant="Variant.Outlined" Color="Color.Primary">Žebříček</MudButton>
-                    @* TODO: Href="/pravidla" once the rules page exists. *@
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="true" title="Pravidla budou brzy">Pravidla</MudButton>
-                </nav>
-            </aside>
+            <section class="ph-points" aria-labelledby="ph-points-heading">
+                <h2 id="ph-points-heading" class="ph-display">Tvoje body</h2>
+                <div class="ph-points-total">
+                    <PointsBadge Value="Total" Class="ph-display" />
+                </div>
+                @if (rank is not null)
+                {
+                    <div class="ph-points-rank">@rank. místo v žebříčku</div>
+                }
+
+                @if (history is { Count: > 0 })
+                {
+                    <PointsHistory Entries="history" />
+                }
+                else if (history is not null)
+                {
+                    <p class="ph-points-empty">Zatím žádné body. První přijdou se splněným úkolem.</p>
+                }
+            </section>
         </div>
     </PageShell>
 }
@@ -143,6 +182,8 @@ else
     private IReadOnlyList<HuntTaskView>? tasks;
     private IReadOnlySet<int> completed = new HashSet<int>();
     private IReadOnlyList<PointEntryView>? history;
+    private IReadOnlyList<BonusEventView>? events;
+    private IReadOnlySet<int> claimedEvents = new HashSet<int>();
     private int? rank;
     private Timer? clock;
 
@@ -172,13 +213,14 @@ else
 
         Tasks.Changed += OnDataChanged;
         Scoreboard.Changed += OnDataChanged;
+        Events.Changed += OnDataChanged;
         Settings.Changed += OnSettingsChanged;
         await LoadAsync();
     }
 
     protected override void OnAfterRender(bool firstRender)
     {
-        // Tasks open at a set time: re-check every 30 s so they unlock without a page reload.
+        // Tasks open and bonus events start/end at set times: re-check every 30 s, no page reload needed.
         if (firstRender)
             clock = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
@@ -189,6 +231,8 @@ else
         completed = await Tasks.GetCompletedTaskIdsAsync(playerId);
         history = await Scoreboard.GetPlayerHistoryAsync(playerId);
         rank = (await Scoreboard.GetStandingsAsync()).FirstOrDefault(s => s.PlayerId == playerId)?.Rank;
+        events = await Events.GetAllAsync();
+        claimedEvents = await Events.GetClaimedEventIdsAsync(playerId);
     }
 
     private TaskState StateOf(HuntTaskView task) =>
@@ -215,7 +259,7 @@ else
         _ => "Připravujeme",
     };
 
-    // Tasks, completions or points changed (for anyone): reload this player's view.
+    // Tasks, completions, points or bonus events changed (for anyone): reload this player's view.
     private void OnDataChanged() => _ = InvokeAsync(async () =>
     {
         try
@@ -236,6 +280,7 @@ else
     {
         Tasks.Changed -= OnDataChanged;
         Scoreboard.Changed -= OnDataChanged;
+        Events.Changed -= OnDataChanged;
         Settings.Changed -= OnSettingsChanged;
         clock?.Dispose();
     }

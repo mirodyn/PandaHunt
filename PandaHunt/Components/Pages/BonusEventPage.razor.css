@@ -1,0 +1,115 @@
+.ph-event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.75rem;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.ph-event-text p {
+    margin: 0 0 0.75rem;
+}
+
+.ph-event-reward {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+    .ph-event-reward ::deep .ph-pts {
+        font-size: 1.8rem;
+        line-height: 1;
+    }
+
+.ph-event-map {
+    height: 15rem;
+}
+
+.ph-event-maplinks {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    margin-top: 0.35rem;
+    color: #555;
+    font-size: 0.8rem;
+}
+
+    .ph-event-maplinks a {
+        margin-left: auto;
+        font-weight: 500;
+    }
+
+.ph-event-note {
+    margin: 0;
+    padding: 0.6rem 0.9rem;
+    border: 2px dashed #9e9e9e;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+/* ---------- Claiming ---------- */
+
+.ph-claim {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 3px solid #000;
+}
+
+    .ph-claim p {
+        margin: 0;
+    }
+
+    .ph-claim ::deep .mud-button-root {
+        border-width: 3px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+    }
+
+    .ph-claim ::deep .mud-button-root.mud-disabled {
+        background-color: #e6e6e6;
+    }
+
+.ph-claim-msg {
+    padding: 0.6rem 0.9rem;
+    border: 2px solid #000;
+    font-size: 0.9rem;
+}
+
+    .ph-claim-msg.ph-claim-error {
+        background: #000;
+        color: #fff;
+    }
+
+.ph-claim-done {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.8rem 1rem;
+    background: #000;
+    color: #fff;
+}
+
+    .ph-claim-done ::deep .ph-claim-done-icon {
+        flex: none;
+        font-size: 3rem;
+    }
+
+.ph-claim-done-title {
+    font-size: 2.4rem;
+    line-height: 1;
+}
+
+.ph-claim-done-when {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    color: #cfcfcf;
+    font-size: 0.85rem;
+}

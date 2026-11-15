@@ -1,0 +1,28 @@
+@* A player's point changes, newest first: amount (with bamboo), date and comment. Scrolls when long.
+   Used for your own points on /lov and for anyone's points from the leaderboard. *@
+@inject GameSchedule Schedule
+
+<ul class="ph-points-history" tabindex="0" aria-label="Historie bodů" style="@(MaxHeight is null ? null : $"max-height: {MaxHeight}")">
+    @foreach (var entry in Entries)
+    {
+        <li>
+            <div class="ph-points-line">
+                <strong><PointsBadge Value="entry.Points" Signed="true" /></strong>
+                <span class="ph-points-when">@Schedule.FormatDate(entry.CreatedAtUtc)</span>
+            </div>
+            @if (entry.Comment is { } comment)
+            {
+                <div class="ph-points-comment">@comment</div>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PointEntryView> Entries { get; set; } = [];
+
+    /// <summary>CSS max-height before it scrolls (default 15rem).</summary>
+    [Parameter]
+    public string? MaxHeight { get; set; }
+}

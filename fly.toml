@@ -1,0 +1,40 @@
+# Fly.io config. Deploy from the repo root with `fly deploy`.
+# This file is public (the repo is public): no secrets here. The admin e-mail goes in with
+#   fly secrets set Admin__Emails__0=you@example.com
+
+app = "pandahunt"            # change to the name you created the app with
+primary_region = "fra"       # Frankfurt
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ConnectionStrings__Default = "Data Source=/data/pandahunt.db"
+  DataProtection__KeysPath = "/data/keys"
+  # Fly terminates HTTPS and forwards plain HTTP; this makes the app see the original https:// request.
+  ASPNETCORE_FORWARDEDHEADERS_ENABLED = "true"
+
+# Persistent disk for the SQLite database and the login keys. Create it once with
+#   fly volumes create pandahunt_data --region fra --size 1
+[mounts]
+  source = "pandahunt_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Blazor Server keeps every open tab connected; stopping the machine would cut them off.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # Each open tab holds one WebSocket. Fly's default limit (25 connections) would be too tight.
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"

@@ -17,4 +17,12 @@ public static class CzechText
 
     /// <summary>Signed change for the admin history: "+5", "−3".</summary>
     public static string SignedPoints(int n) => n > 0 ? $"+{n}" : n < 0 ? $"−{-(long)n}" : "0";
+
+    /// <summary>"35 m", "1,2 km", "24 km".</summary>
+    public static string Distance(int meters) =>
+        meters < 1000 ? $"{meters} m"
+        : meters < 10_000 ? (meters / 1000.0).ToString("0.# 'km'", Czech)
+        : (meters / 1000.0).ToString("N0", Czech) + " km";
+
+    private static readonly System.Globalization.CultureInfo Czech = System.Globalization.CultureInfo.GetCultureInfo("cs-CZ");
 }

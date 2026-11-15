@@ -76,3 +76,209 @@
     from { transform: translateY(0); }
     to { transform: translateY(-4px); }
 }
+
+/* ---------- Feeding minigame ---------- */
+
+/* Munching: a quick squash while eating. */
+.ph-panda[data-state="eating"] .ph-panda-svg {
+    animation: ph-munch 0.2s ease-in-out infinite alternate;
+}
+
+.ph-panda[data-state="eating"] .leg {
+    animation-play-state: paused;
+}
+
+@keyframes ph-munch {
+    from { transform: scale(1, 1); }
+    to { transform: scale(1.05, 0.95); }
+}
+
+/* The bamboo: placed by panda.js with its bottom centre on the clicked spot. Same layer as the panda,
+   so it stays below the page content; the panda (later in the page) is drawn over it. */
+.ph-sprout {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 44px;   /* SPROUT_W / SPROUT_H in panda.js */
+    height: 76px;
+    z-index: 0;
+    pointer-events: none;
+    display: none;
+}
+
+    .ph-sprout[data-state] {
+        display: block;
+    }
+
+.ph-sprout-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-origin: 50% 100%;
+}
+
+.ph-sprout[data-state="growing"] .ph-sprout-svg {
+    animation: ph-grow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Eaten from the top down, bite by bite (1.3 s = EAT_MS in panda.js). */
+.ph-sprout[data-state="eaten"] .ph-sprout-svg {
+    animation: ph-eaten 1.3s steps(5, end) forwards;
+}
+
+@keyframes ph-grow {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+}
+
+@keyframes ph-eaten {
+    from { clip-path: inset(0 0 0 0); }
+    to { clip-path: inset(100% 0 0 0); }
+}
+
+/* Five dots above her head, popped up briefly after each bamboo; one turns green per bamboo. */
+.ph-panda-dots {
+    position: absolute;
+    left: 50%;
+    top: -18px;
+    display: flex;
+    gap: 5px;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+    .ph-panda-dots.show {
+        opacity: 1;
+    }
+
+.ph-panda-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #000;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+    .ph-panda-dot.on {
+        background: #43a047;
+        animation: ph-dot-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+/* All five: a little wave. */
+.ph-panda-dots.done .ph-panda-dot {
+    animation: ph-dot-wave 0.45s ease-in-out infinite alternate;
+}
+
+    .ph-panda-dots.done .ph-panda-dot:nth-child(2) { animation-delay: 0.09s; }
+    .ph-panda-dots.done .ph-panda-dot:nth-child(3) { animation-delay: 0.18s; }
+    .ph-panda-dots.done .ph-panda-dot:nth-child(4) { animation-delay: 0.27s; }
+    .ph-panda-dots.done .ph-panda-dot:nth-child(5) { animation-delay: 0.36s; }
+
+@keyframes ph-dot-pop {
+    from { transform: scale(0.2); }
+    to { transform: scale(1); }
+}
+
+@keyframes ph-dot-wave {
+    from { transform: translateY(0); }
+    to { transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ph-panda-svg,
+    .leg,
+    .ph-sprout-svg,
+    .ph-panda-dot,
+    .ph-panda[data-state="eating"] .ph-panda-svg,
+    .ph-panda-dots.done .ph-panda-dot {
+        animation: none !important;
+    }
+}
+
+/* ---------- Speech bubble (clicking on the panda) ---------- */
+
+/* Placed by panda.js above her head; above the page content (z-index 1) and the show/hide button (2). */
+.ph-bubble {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    max-width: min(220px, calc(100vw - 16px));
+    pointer-events: none;
+    visibility: hidden;
+    transition: visibility 0s linear 0.2s; /* stay visible while fading out */
+}
+
+    .ph-bubble.show {
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+.ph-bubble-text {
+    position: relative;
+    padding: 0.45rem 0.7rem;
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+    box-shadow: 3px 3px 0 #000;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.6);
+    transform-origin: var(--tail-x, 50%) 100%;
+    transition: opacity 0.15s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+    .ph-bubble.show .ph-bubble-text {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    /* The tail, pointing at her head (--tail-x set by panda.js). */
+    .ph-bubble-text::after {
+        content: "";
+        position: absolute;
+        left: var(--tail-x, 50%);
+        bottom: -7px;
+        width: 10px;
+        height: 10px;
+        margin-left: -6px;
+        background: #fff;
+        border-right: 2px solid #000;
+        border-bottom: 2px solid #000;
+        transform: rotate(45deg);
+    }
+
+/* Near the top of the screen the bubble goes under her feet instead, tail pointing up. */
+.ph-bubble.below .ph-bubble-text {
+    transform-origin: var(--tail-x, 50%) 0;
+}
+
+    .ph-bubble.below .ph-bubble-text::after {
+        top: -7px;
+        bottom: auto;
+        transform: rotate(-135deg);
+    }
+
+/* Annoyed: heavier border and a little shake. */
+.ph-bubble.annoyed .ph-bubble-text {
+    border-width: 3px;
+    animation: ph-bubble-shake 0.3s ease-in-out 2;
+}
+
+@keyframes ph-bubble-shake {
+    0%, 100% { translate: 0; }
+    25% { translate: -4px 0; }
+    75% { translate: 4px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ph-bubble-text,
+    .ph-bubble.annoyed .ph-bubble-text {
+        transition: none;
+        animation: none;
+    }
+}

@@ -8,7 +8,8 @@
 
 <WanderingPanda />
 
-<main class="ph-home">
+@* data-feed-zone: clicking the empty parts of this area grows a bamboo (see panda.js). *@
+<main class="ph-home @(uiHidden ? "ph-ui-hidden" : null)" data-feed-zone>
     <h1 class="ph-display ph-title"><a href="/" class="ph-title-link" aria-current="page">PandaHunt IV</a></h1>
     <p class="ph-tagline">Najdi pandu. Stopy tě dovedou.</p>
 
@@ -41,12 +42,23 @@
     <MessageBoardView />
 </main>
 
+@* Hides everything except the panda, to have the whole screen for feeding her (handy on phones). *@
+<button type="button"
+        class="ph-ui-toggle"
+        aria-pressed="@(uiHidden ? "true" : "false")"
+        aria-label="@(uiHidden ? "Zobrazit stránku" : "Skrýt stránku")"
+        title="@(uiHidden ? "Zobrazit stránku" : "Skrýt stránku")"
+        @onclick="() => uiHidden = !uiHidden">
+    <MudIcon Icon="@(uiHidden ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)" />
+</button>
+
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
 
     private Timer? scheduleTimer;
     private bool isAdmin;
+    private bool uiHidden;
 
     // Open while the hunt runs and afterwards (to see the results); admins can always preview it.
     private bool CanHunt => Schedule.IsHuntOpen || Schedule.IsHuntOver || isAdmin;

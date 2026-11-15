@@ -1,0 +1,391 @@
+@page "/lov/akce/{Id:int}"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@using System.Security.Claims
+@inject BonusEvents Events
+@inject GameSchedule Schedule
+@inject IJSRuntime JS
+
+@*
+    A bonus event's page (opened from the wide tile on /lov). While the event runs, a player standing at its
+    place claims the points here: the browser asks for their position once, the server checks the distance.
+    Players can open the running event, the next planned one and past ones; anything else is "not found".
+*@
+
+@if (!loaded)
+{
+    @* Loading. *@
+}
+else if (bonusEvent is not { } ev || !CanSee)
+{
+    <PageTitle>Nenalezeno · PandaHunt IV</PageTitle>
+    <PageShell Title="Tady nic není" BackHref="/lov" BackText="Zpět na lov">
+        <p>Tahle akce neexistuje. A panda tu taky není.</p>
+    </PageShell>
+}
+else
+{
+    var state = ev.StateAt(Schedule.Now);
+    <PageTitle>@ev.Name · PandaHunt IV</PageTitle>
+    <PageShell Title="@ev.Name" BackHref="/lov" BackText="Zpět na lov">
+        @if (AdminNote is { } note)
+        {
+            <p class="ph-banner">@note</p>
+        }
+
+        <div class="ph-event-meta">
+            <span class="ph-pill @(state == BonusEventState.Live ? "on" : null)">@StateText(state)</span>
+            <span>@Schedule.FormatRange(ev.StartsAt, ev.EndsAt)</span>
+        </div>
+
+        <div class="ph-event-text">
+            @foreach (var paragraph in ev.Paragraphs)
+            {
+                <p>@paragraph</p>
+            }
+            <p class="ph-event-reward">Odměna: <PointsBadge Value="ev.Points" Signed="true" Class="ph-display" /></p>
+        </div>
+
+        @if (ShowMap)
+        {
+            <div @ref="mapElement" class="ph-map ph-event-map" role="region" aria-label="Mapa s místem akce">
+                @if (mapError is not null)
+                {
+                    <div class="ph-map-error">@mapError</div>
+                }
+            </div>
+            <div class="ph-event-maplinks">
+                @if (!ev.ShowPlace)
+                {
+                    <span>Hráči mapu nevidí – místo je tajné.</span>
+                }
+                <a href="@NavigationLink(ev)" target="_blank" rel="noopener">Navigovat v Google Maps</a>
+            </div>
+        }
+        else
+        {
+            <p class="ph-event-note">Místo na mapě neukazujeme – to musíš najít.</p>
+        }
+
+        <section class="ph-claim" aria-label="Vyzvednutí bodů">
+            @if (claim is not null)
+            {
+                <div class="ph-claim-done">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="ph-claim-done-icon" />
+                    <div>
+                        <div class="ph-display ph-claim-done-title">Body máš!</div>
+                        <div class="ph-claim-done-when">
+                            <PointsBadge Value="claim.Points" Signed="true" /> · vyzvednuto @Schedule.Format(claim.ClaimedAtUtc)
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (!isAdmin && state == BonusEventState.Planned)
+            {
+                <p>Body půjde vyzvednout od <strong>@Schedule.Format(ev.StartsAt)</strong>. Pak přijď na místo a klikni tady na tlačítko.</p>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Disabled="true">Jsem tady – vyzvednout body</MudButton>
+            }
+            else if (!isAdmin && state == BonusEventState.Over)
+            {
+                <p>Akce skončila @Schedule.Format(ev.EndsAt). Body už vyzvednout nejde.</p>
+            }
+            else
+            {
+                @if (isAdmin)
+                {
+                    <p>Jako admin body nedostaneš, ale můžeš si vyzkoušet, jestli tě aplikace na místě pozná.</p>
+                }
+                else
+                {
+                    <p>
+                        Až budeš na místě, klikni na tlačítko. Ověříme, že jsi opravdu tady: prohlížeč se tě zeptá, jestli smí
+                        zjistit tvoji polohu – povol mu to, prosím. Polohu zjistíme jen teď, jednou, a tvoje souřadnice nikam
+                        neukládáme – jen vzdálenost od místa akce.
+                    </p>
+                }
+                @if (permission == "denied")
+                {
+                    <p class="ph-claim-msg ph-claim-error">
+                        Polohu máš pro tuhle stránku zakázanou. Bez ní to nepůjde – povol ji v nastavení prohlížeče
+                        (obvykle přes ikonu vedle adresy) a načti stránku znovu.
+                    </p>
+                }
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Large"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.MyLocation"
+                           Disabled="busy || module is null"
+                           OnClick="ClaimAsync">
+                    @(busy ? "Zjišťuju, kde jsi…" : isAdmin ? "Vyzkoušet polohu" : "Jsem tady – vyzvednout body")
+                </MudButton>
+            }
+
+            @if (message is not null)
+            {
+                <p class="ph-claim-msg @(messageIsError ? "ph-claim-error" : null)" role="status">@message</p>
+            }
+        </section>
+    </PageShell>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private bool loaded;
+    private string playerId = "";
+    private bool isAdmin;
+    private BonusEventView? bonusEvent;
+    private BonusEventView? current;
+    private BonusClaimView? claim;
+
+    private bool busy;
+    private string? message;
+    private bool messageIsError;
+    private string permission = "unknown";
+
+    private ElementReference mapElement;
+    private string? mapError;
+    private IJSObjectReference? module;
+    private IJSObjectReference? map;
+    private string? mapShows; // which place the map shows now ("lat,lng,radius"), null = no map
+    private bool syncingMap;
+    private Timer? clock;
+
+    private bool IsHuntOn => Schedule.IsHuntOpen || Schedule.IsHuntOver;
+
+    // Players: while the hunt is on, the running/next event (the one on /lov) and past ones. Admins: everything.
+    private bool CanSee => isAdmin || (IsHuntOn && bonusEvent is { } e
+        && (e.StateAt(Schedule.Now) != BonusEventState.Planned || current?.Id == e.Id));
+
+    private bool ShowMap => bonusEvent is { } e && (e.ShowPlace || isAdmin);
+
+    private string? AdminNote =>
+        !isAdmin ? null
+        : !IsHuntOn ? "Náhled pro admina – lov ještě nezačal, hráči tuhle stránku nevidí."
+        : bonusEvent is { } e && e.StateAt(Schedule.Now) == BonusEventState.Planned && current?.Id != e.Id
+            ? "Náhled pro admina – hráči tuhle akci uvidí, až bude na řadě (na Lovu je teď jiná)."
+        : null;
+
+    private static string StateText(BonusEventState state) => state switch
+    {
+        BonusEventState.Planned => "Chystá se",
+        BonusEventState.Live => "Probíhá",
+        _ => "Skončila",
+    };
+
+    private static string NavigationLink(BonusEventView e) =>
+        FormattableString.Invariant($"https://www.google.com/maps/search/?api=1&query={e.Latitude:0.######},{e.Longitude:0.######}");
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        playerId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        isAdmin = user.IsInRole(AppRoles.Admin);
+
+        Events.Changed += OnEventsChanged;
+        await LoadAsync();
+        loaded = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Another event's page opened while this one was showing (same component, new Id).
+        if (loaded && bonusEvent?.Id != Id)
+        {
+            message = null;
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        var all = await Events.GetAllAsync();
+        bonusEvent = all.FirstOrDefault(e => e.Id == Id);
+        current = BonusEvents.CurrentOf(all, Schedule.Now);
+        claim = bonusEvent is null || isAdmin ? null : await Events.GetClaimAsync(bonusEvent.Id, playerId);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // The event starts and ends at set times: re-check every 30 s, no reload needed.
+            clock = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            try
+            {
+                module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/bonus-map.js");
+                permission = await module.InvokeAsync<string>("locationPermission");
+            }
+            catch (JSDisconnectedException)
+            {
+                return;
+            }
+            StateHasChanged(); // enables the button
+        }
+
+        await SyncMapAsync();
+    }
+
+    // Creates, moves or removes the Leaflet map to match what the page shows.
+    private async Task SyncMapAsync()
+    {
+        if (syncingMap || module is null)
+            return;
+
+        syncingMap = true;
+        try
+        {
+            string? Wanted() => loaded && CanSee && ShowMap && bonusEvent is { } e
+                ? FormattableString.Invariant($"{e.Latitude},{e.Longitude},{e.RadiusMeters}")
+                : null;
+
+            while (Wanted() is var wanted && wanted != mapShows)
+            {
+                if (map is not null)
+                {
+                    await map.InvokeVoidAsync("dispose");
+                    await map.DisposeAsync();
+                    map = null;
+                }
+                mapShows = wanted;
+                if (wanted is not null && bonusEvent is { } e)
+                {
+                    try
+                    {
+                        map = await module.InvokeAsync<IJSObjectReference>("showPlace", mapElement, e.Latitude, e.Longitude, e.RadiusMeters);
+                        mapError = null;
+                    }
+                    catch (JSException)
+                    {
+                        mapError = "Mapu se nepodařilo načíst.";
+                        StateHasChanged();
+                    }
+                }
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Browser gone.
+        }
+        finally
+        {
+            syncingMap = false;
+        }
+    }
+
+    private async Task ClaimAsync()
+    {
+        if (module is null || bonusEvent is not { } ev)
+            return;
+
+        busy = true;
+        message = null;
+        try
+        {
+            var fix = await module.InvokeAsync<LocationFix>("locate");
+            permission = await module.InvokeAsync<string>("locationPermission");
+            if (fix is not { Latitude: { } lat, Longitude: { } lng })
+            {
+                Say(LocationFix.Explain(fix.Error), error: true);
+                return;
+            }
+            var accuracy = Math.Max(0, fix.Accuracy ?? 0);
+
+            if (map is not null)
+                await map.InvokeVoidAsync("showMe", lat, lng, accuracy);
+
+            if (isAdmin)
+            {
+                var (distance, inside) = BonusEvents.Measure(ev, lat, lng);
+                Say($"Jsi {CzechText.Distance(distance)} od špendlíku (přesnost ±{CzechText.Distance((int)accuracy)}). "
+                    + (inside ? "Hráč by body dostal." : $"Hráč by body nedostal – musí být do {ev.RadiusMeters} m."), error: !inside);
+                return;
+            }
+
+            var result = await Events.ClaimAsync(ev.Id, playerId, lat, lng, accuracy);
+            switch (result.Outcome)
+            {
+                case ClaimOutcome.Claimed:
+                case ClaimOutcome.AlreadyClaimed:
+                    await LoadAsync(); // shows "Body máš!"; the points popup comes on its own
+                    break;
+                case ClaimOutcome.TooFar:
+                    Say(TooFarText(ev, result.DistanceMeters, accuracy), error: true);
+                    break;
+                case ClaimOutcome.NotStarted:
+                    Say("Akce ještě nezačala.", error: true);
+                    break;
+                case ClaimOutcome.Over:
+                    Say("Akce už skončila.", error: true);
+                    break;
+                default:
+                    await LoadAsync();
+                    break;
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Browser gone.
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    // Secret places stay secret: no distance then, or players could triangulate.
+    private static string TooFarText(BonusEventView ev, int distance, double accuracy)
+    {
+        var text = ev.ShowPlace && distance > 0
+            ? $"Tady to není – podle telefonu jsi asi {CzechText.Distance(distance)} od místa akce (musíš být do {ev.RadiusMeters} m)."
+            : "Tady to není. Hledej dál!";
+        if (accuracy > ev.RadiusMeters)
+            text += $" Tvoje poloha je ale zatím dost nepřesná (±{CzechText.Distance((int)accuracy)}) – zkus to za chvilku znovu, nejlépe venku.";
+        return text;
+    }
+
+    private void Say(string text, bool error)
+    {
+        message = text;
+        messageIsError = error;
+    }
+
+    // Edited or deleted by an admin, or someone claimed: reload.
+    private void OnEventsChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    public async ValueTask DisposeAsync()
+    {
+        Events.Changed -= OnEventsChanged;
+        clock?.Dispose();
+        try
+        {
+            if (map is not null)
+            {
+                await map.InvokeVoidAsync("dispose");
+                await map.DisposeAsync();
+            }
+            if (module is not null)
+                await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Browser already gone.
+        }
+    }
+}
