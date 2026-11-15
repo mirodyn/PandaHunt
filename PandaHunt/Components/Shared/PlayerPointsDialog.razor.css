@@ -11,6 +11,7 @@
 
 .ph-player-summary {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 0.75rem;
 }
@@ -29,3 +30,8 @@
     margin: 0.75rem 0 0;
     color: #555;
 }
+
+    .ph-player-summary ::deep .ph-player-stars {
+        font-size: 1.3rem;
+        align-self: center;
+    }

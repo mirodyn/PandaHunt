@@ -11,7 +11,7 @@
                        ToStringFunc="PlayerName">
                 @foreach (var player in Players)
                 {
-                    <MudSelectItem Value="@player.PlayerId">@player.PlayerName (@CzechText.Points(player.Points))</MudSelectItem>
+                    <MudSelectItem Value="@player.PlayerId">@player.PlayerName (@CzechText.Points(player.Total))</MudSelectItem>
                 }
             </MudSelect>
             <MudNumericField T="int?"

@@ -4,15 +4,21 @@ using PandaHunt.Data;
 
 namespace PandaHunt.Services;
 
-/// <summary>A row of the leaderboard. Tied players share a rank (1, 1, 3, ...).</summary>
-public sealed record Standing(int Rank, string PlayerId, string PlayerName, int Points);
+/// <summary>
+/// A row of the leaderboard: <see cref="Points"/> from the point log plus the stars held right now.
+/// Players are ranked by <see cref="Total"/>; tied players share a rank (1, 1, 3, ...).
+/// </summary>
+public sealed record Standing(int Rank, string PlayerId, string PlayerName, int Points, StarCounts Stars)
+{
+    public int Total => Points + Stars.Points;
+}
 
 public sealed record PointEntryView(int Id, string PlayerId, string PlayerName, int Points, string? Comment, DateTime CreatedAtUtc);
 
 /// <summary>
-/// Player scores. A score is the sum of the player's <see cref="PointEntry"/> rows. Admins (organisers)
-/// are not players, so they are left off the leaderboard. Connected pages are notified on every change
-/// (in-process, fine for a single server instance).
+/// Player scores. A score is the sum of the player's <see cref="PointEntry"/> rows plus the value of the
+/// stars they hold right now (<see cref="TaskStars"/>). Admins (organisers) are not players, so they are left
+/// off the leaderboard. Connected pages are notified on every change (in-process, fine for a single server instance).
 /// </summary>
 public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimeProvider time)
 {
@@ -21,16 +27,27 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
 
     private readonly SemaphoreSlim onceGate = new(1, 1);
 
-    /// <summary>Raised after points change or the list of players changes (register, rename, delete, role).</summary>
+    /// <summary>Raised after points or stars change or the list of players changes (register, rename, delete, role).</summary>
     public event Action? Changed;
+
+    /// <summary>Ids of the admins, who aren't players (for use inside a query).</summary>
+    internal static IQueryable<string> AdminIds(AppDbContext db) =>
+        db.UserRoles
+            .Where(ur => db.Roles.Any(r => r.Id == ur.RoleId && r.Name == AppRoles.Admin))
+            .Select(ur => ur.UserId);
 
     public async Task<IReadOnlyList<Standing>> GetStandingsAsync(CancellationToken cancellationToken = default)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-        var adminIds = db.UserRoles
-            .Where(ur => db.Roles.Any(r => r.Id == ur.RoleId && r.Name == AppRoles.Admin))
-            .Select(ur => ur.UserId);
+        var adminIds = AdminIds(db);
+
+        var stars = (await db.TaskStars
+                .AsNoTracking()
+                .Select(s => new { s.PlayerId, s.Color })
+                .ToListAsync(cancellationToken))
+            .GroupBy(s => s.PlayerId)
+            .ToDictionary(g => g.Key, g => StarCounts.From(g.Select(s => s.Color)));
 
         var players = await db.Users
             .AsNoTracking()
@@ -44,16 +61,17 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
             .ToListAsync(cancellationToken);
 
         var ordered = players
-            .OrderByDescending(p => p.Points)
-            .ThenBy(p => p.UserName, StringComparer.CurrentCultureIgnoreCase)
+            .Select(p => new Standing(0, p.Id, p.UserName ?? "", p.Points, stars.GetValueOrDefault(p.Id, StarCounts.None)))
+            .OrderByDescending(p => p.Total)
+            .ThenBy(p => p.PlayerName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
         var standings = new List<Standing>(ordered.Count);
         for (var i = 0; i < ordered.Count; i++)
         {
             var player = ordered[i];
-            var rank = i > 0 && ordered[i - 1].Points == player.Points ? standings[i - 1].Rank : i + 1;
-            standings.Add(new Standing(rank, player.Id, player.UserName ?? "", player.Points));
+            var rank = i > 0 && ordered[i - 1].Total == player.Total ? standings[i - 1].Rank : i + 1;
+            standings.Add(player with { Rank = rank });
         }
         return standings;
     }

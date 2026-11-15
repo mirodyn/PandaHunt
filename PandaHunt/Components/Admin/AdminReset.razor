@@ -1,0 +1,84 @@
+@* Hard reset of the whole app: everything is deleted and the app restarts (see Services/AppReset.cs). *@
+@inject AppReset Reset
+@inject ISnackbar Snackbar
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Úplný reset aplikace</h2>
+    <p>Smaže úplně všechno a aplikace začne znovu jako po prvním nasazení:</p>
+    <ul class="ph-reset-list">
+        <li>všechny hráče i adminy – včetně tebe,</li>
+        <li>body, vzkazy, splněné úkoly, bonusové akce i jejich historii,</li>
+        <li>nastavení hry (fáze, kód, data) a úpravy úkolů – vrátí se výchozí,</li>
+        <li>přihlašovací klíče – všichni budou odhlášení a kód fáze 0 musí zadat znovu.</li>
+    </ul>
+    <p>
+        @if (AppReset.RestartsByItself)
+        {
+            <text>Aplikace se pak vypne a Fly.io ji za pár vteřin spustí znovu.</text>
+        }
+        else
+        {
+            <text>Aplikace se pak vypne – tady se sama nespustí, spusť ji znovu.</text>
+        }
+        Adminem budeš zase po nové registraci s adminským e-mailem. Vrátit to nejde.
+    </p>
+    <p class="ph-admin-muted">
+        Smaže se databáze @(Reset.DatabaseFile ?? "–")
+        @if (Reset.KeysFolder is { } keys)
+        {
+            <text> a klíče ve složce @keys.</text>
+        }
+        else
+        {
+            <text>. Klíče tu nemají vlastní složku (DataProtection:KeysPath), sdílí je i jiné aplikace, takže zůstanou;
+                stará přihlášení pak přestanou platit nejpozději do minuty.</text>
+        }
+    </p>
+
+    @if (Reset.IsRequested)
+    {
+        <p class="ph-reset-status" role="status">
+            Mažu a restartuji… @(AppReset.RestartsByItself ? "Až aplikace naběhne, stránka se sama obnoví." : "Teď aplikaci spusť znovu.")
+        </p>
+    }
+    else
+    {
+        <MudTextField T="string"
+                      @bind-Value="confirmation"
+                      Immediate="true"
+                      Label="@($"Pro potvrzení napiš {AppReset.ConfirmWord}")"
+                      Variant="Variant.Outlined"
+                      Class="ph-admin-narrow mt-2"
+                      UserAttributes="@(new Dictionary<string, object?> { ["autocomplete"] = "off" })" />
+        <div class="ph-admin-actions">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.DeleteForever"
+                       Disabled="@(!AppReset.IsConfirmation(confirmation))"
+                       OnClick="ResetAsync">
+                Smazat všechno a restartovat
+            </MudButton>
+        </div>
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private string? confirmation;
+
+    private async Task ResetAsync()
+    {
+        var admin = (await AuthenticationState).User.Identity?.Name ?? "?";
+        try
+        {
+            if (!Reset.Request(confirmation, admin))
+                Snackbar.Add($"Napiš {AppReset.ConfirmWord}, jinak se nic nesmaže.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Reset se nepodařilo spustit: {ex.Message}", Severity.Error);
+        }
+    }
+}

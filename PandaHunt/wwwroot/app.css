@@ -227,6 +227,10 @@ a {
     max-width: 960px;
 }
 
+.ph-card.ph-card-medium {
+    max-width: 640px;
+}
+
 .ph-pill {
     display: inline-block;
     padding: 0.25rem 0.7rem;
@@ -278,6 +282,33 @@ a {
     .ph-admin-heading h2 {
         margin: 0;
     }
+
+/* QR preview in the "Body na zemi" dialog. */
+.ph-admin-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+    .ph-admin-qr img {
+        width: min(18rem, 100%);
+        aspect-ratio: 1;
+        border: 1px solid #d9d9d9;
+    }
+
+.ph-admin-qr-url {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.ph-admin-heading-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
 
 .ph-admin-code {
     max-width: 22rem;
@@ -355,9 +386,53 @@ a {
     max-width: 20rem;
 }
 
+/* Star counts in the admin standings table. */
+.ph-admin-stars {
+    font-size: 1.25rem;
+    vertical-align: middle;
+}
+
+/* Star + player picker in the task stars dialog. */
+.ph-admin-star {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+    .ph-admin-star > .ph-star {
+        font-size: 1.6rem;
+        margin-top: 0.55rem;
+    }
+
+    .ph-admin-star > .mud-input-control {
+        flex: 1;
+    }
+
 .ph-admin-row-actions {
     white-space: nowrap;
     text-align: right;
+}
+
+/* ---------- Printing the QR sheet (/admin/tisk-qr): only the codes go on paper ---------- */
+
+@media print {
+    body:has(.ph-print-sheet) .ph-title,
+    body:has(.ph-print-sheet) .ph-page-title,
+    body:has(.ph-print-sheet) .ph-card-footer {
+        display: none;
+    }
+
+    body:has(.ph-print-sheet) .ph-page {
+        min-height: 0;
+        padding: 0;
+    }
+
+    body:has(.ph-print-sheet) .ph-card {
+        max-width: none;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
 }
 
 /* ---------- Maps (bonus events; Leaflet builds the inside, so these can't be scoped) ---------- */
@@ -422,6 +497,86 @@ a {
     flex: none;
     width: 0.65em; /* viewBox is 15.5 × 23 */
     height: 0.95em;
+}
+
+/* ---------- Bonus stars: filled gold / silver / bronze star with a count inside (StarIcon, StarTally) ---------- */
+
+/* Drawn like the bamboo: flat fill, a darker rim (the bamboo's joints) and a light streak (its highlights). */
+.ph-star {
+    display: inline-flex;
+    flex: none;
+    width: 1.6em;
+    height: 1.6em;
+}
+
+    .ph-star svg {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
+
+.ph-star-gold {
+    --star-rim: #ff8f00;
+    --star-body: #ffc107;
+    --star-shine: #fff3c4;
+    --star-number: #5d3a00;
+}
+
+.ph-star-silver {
+    --star-rim: #78909c;
+    --star-body: #b0bec5;
+    --star-shine: #eceff1;
+    --star-number: #263238;
+}
+
+.ph-star-bronze {
+    --star-rim: #8d4e1c;
+    --star-body: #cd7f32;
+    --star-shine: #f3c49b;
+    --star-number: #3e1f05;
+}
+
+/* Holds none of this colour: light grey with a 0. */
+.ph-star-zero {
+    --star-rim: #cfcfcf;
+    --star-body: #e8e8e8;
+    --star-shine: #f7f7f7;
+    --star-number: #9a9a9a;
+}
+
+/* Rounded corners like the bamboo's: each shape gets a stroke of its own colour with round joins. */
+.ph-star-rim {
+    fill: var(--star-rim);
+    stroke: var(--star-rim);
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+
+.ph-star-body {
+    fill: var(--star-body);
+    stroke: var(--star-body);
+    stroke-width: 1.2;
+    stroke-linejoin: round;
+}
+
+.ph-star-shine {
+    fill: none;
+    stroke: var(--star-shine);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+}
+
+.ph-star-number {
+    fill: var(--star-number);
+    font-family: "Bebas Neue", "Impact", sans-serif;
+    text-anchor: middle;
+}
+
+.ph-star-tally {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15em;
+    white-space: nowrap;
 }
 
 .ph-sr-only {

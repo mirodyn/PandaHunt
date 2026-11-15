@@ -1,0 +1,40 @@
+@*
+    A bonus star, drawn like the bamboo: a flat filled star in its colour (gold / silver / bronze) with a darker
+    rim and a light streak, optionally with a number inside (how many of them someone holds). With 0 it's a
+    light grey star. Sized to the surrounding text. Colours: "Bonus stars" section of app.css.
+*@
+@using System.Globalization
+<span class="ph-star @(Count == 0 ? "ph-star-zero" : StarColors.CssClass(Color)) @Class" title="@Text">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path class="ph-star-rim" d="@Outer" />
+        <path class="ph-star-body" d="@Inner" />
+        <path class="ph-star-shine" d="M11.5 6.3 10.4 8.1" />
+        @if (Count is { } n)
+        {
+            @* Bebas Neue: digits are 0.7em tall, so the baseline sits 0.35em below the star's centre (y = 13). *@
+            var size = n >= 10 ? 9.5 : 12.5;
+            @* (Wrapped in <g>: a bare <text> right inside a Razor code block means something else to Razor.) *@
+            <g class="ph-star-number"><text x="12" y="@((13 + 0.35 * size).ToString(CultureInfo.InvariantCulture))" font-size="@size.ToString(CultureInfo.InvariantCulture)">@n</text></g>
+        }
+    </svg>
+    <span class="ph-sr-only">@Text</span>
+</span>
+
+@code {
+    // Five-pointed star around (12, 13), outer radius 11, inner 6.4 (chubbier than usual, so a number fits),
+    // and the same star shrunk to 76 % for the lighter body inside the rim.
+    private const string Outer = "M12 2L15.76 7.82L22.46 9.6L18.09 14.98L18.47 21.9L12 19.4L5.53 21.9L5.91 14.98L1.54 9.6L8.24 7.82Z";
+    private const string Inner = "M12 4.64L14.86 9.06L19.95 10.42L16.63 14.5L16.91 19.76L12 17.86L7.09 19.76L7.37 14.5L4.05 10.42L9.14 9.06Z";
+
+    [Parameter, EditorRequired]
+    public StarColor Color { get; set; }
+
+    /// <summary>The number inside; null = just the star. 0 = a light grey star.</summary>
+    [Parameter]
+    public int? Count { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string Text => Count is { } n ? StarColors.Count(Color, n) : StarColors.Label(Color);
+}

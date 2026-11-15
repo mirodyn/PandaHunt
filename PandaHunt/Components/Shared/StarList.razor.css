@@ -1,0 +1,34 @@
+.ph-star-list {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0 0.4rem 0 0;
+    border-top: 2px solid #000;
+}
+
+    .ph-star-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 0.85rem;
+    }
+
+    .ph-star-list ::deep .ph-star-list-icon {
+        font-size: 1.15rem;
+    }
+
+.ph-star-list-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.ph-star-list-task {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.ph-star-list-when {
+    color: #555;
+    font-size: 0.75rem;
+}

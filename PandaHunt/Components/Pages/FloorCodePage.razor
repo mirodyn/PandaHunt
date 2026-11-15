@@ -1,0 +1,158 @@
+@page "/q/{Token}"
+@using System.Security.Claims
+@inject FloorCodes Codes
+@inject GameSchedule Schedule
+
+@*
+    Where a "Body na zemi" QR code leads. Open to everyone (no [Authorize]), because strangers scan these too:
+    visitors who aren't logged in get a neutral "private game" page that says nothing about the code (not even
+    whether it's real) and asks them to leave it in place, plus a login button for players. A logged-in player
+    gets the points as soon as the page is live (not during prerendering, so link previews can't claim anything).
+*@
+
+@switch (state)
+{
+    case PageState.Loading:
+        break;
+
+    case PageState.Stranger:
+        <PageTitle>Soukromá hra · PandaHunt IV</PageTitle>
+        <PageShell Title="Soukromá hra" ShowBackLink="false">
+            <p>
+                Tenhle QR kód patří k soukromé hře pro partu přátel. Jestli nehraješ, nic se neděje – jen ho prosím nech
+                na místě, ať ho najdou i ostatní. Díky!
+            </p>
+            <p>Hraješ? Přihlas se a body jsou tvoje.</p>
+            <div class="ph-floor-actions">
+                <MudButton Href="@LoginHref" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Přihlásit se</MudButton>
+            </div>
+        </PageShell>
+        break;
+
+    case PageState.Admin:
+        <PageTitle>Body na zemi · PandaHunt IV</PageTitle>
+        <PageShell Title="Body na zemi" BackHref="/admin" BackText="Do administrace">
+            <p class="ph-banner">Náhled pro admina – jako admin body nedostaneš.</p>
+            @if (floorCode is null)
+            {
+                <p class="ph-floor-text">Takový kód neexistuje (nebo byl smazaný). Hráč by tu viděl „Tenhle kód nic nedává“.</p>
+            }
+            else
+            {
+                <div class="ph-floor-win">
+                    <PointsBadge Value="floorCode.Points" Signed="true" Class="ph-display ph-floor-points" />
+                    <div class="ph-display ph-floor-title">@floorCode.Name</div>
+                </div>
+                <p class="ph-floor-text">
+                    @(floorCode.IsActive ? "Kód je zapnutý" : "Kód je vypnutý – hráči za něj nic nedostanou")
+                    · našlo ho @floorCode.ClaimCount @CzechText.Plural(floorCode.ClaimCount, "hráč", "hráči", "hráčů")
+                    @(Schedule.IsHuntOpen ? "" : " · lov teď neběží, hráči by body nedostali")
+                </p>
+            }
+        </PageShell>
+        break;
+
+    default:
+        <PageTitle>Body na zemi · PandaHunt IV</PageTitle>
+        <PageShell Title="Body na zemi" BackHref="/lov" BackText="Na lov">
+            @switch (state)
+            {
+                case PageState.Claiming:
+                    <p class="ph-floor-text">Sbírám body…</p>
+                    break;
+
+                case PageState.Claimed:
+                    <div class="ph-floor-win" role="status">
+                        <PointsBadge Value="result!.Points" Signed="true" Class="ph-display ph-floor-points" />
+                        <div class="ph-display ph-floor-title">Sebráno ze země!</div>
+                    </div>
+                    <p class="ph-floor-text">Body máš na kontě. Hledej další – po městě jich je víc.</p>
+                    break;
+
+                case PageState.AlreadyClaimed:
+                    <div class="ph-floor-win ph-floor-old">
+                        <PointsBadge Value="result!.Points" Signed="true" Class="ph-display ph-floor-points" />
+                        <div class="ph-display ph-floor-title">Tenhle už máš</div>
+                    </div>
+                    <p class="ph-floor-text">
+                        Body za tenhle kód máš od @Schedule.Format(result.ClaimedAtUtc!.Value). Každý kód jde sebrat jen jednou.
+                        Hledej další!
+                    </p>
+                    break;
+
+                case PageState.HuntNotOpen:
+                    <p class="ph-floor-text">
+                        @if (Schedule.IsHuntOver)
+                        {
+                            @("Lov už skončil, body ze země se nesbírají.")
+                        }
+                        else if (Schedule.HuntStartsAt is { } start)
+                        {
+                            @($"Lov ještě nezačal. Body ze země půjde sbírat od {Schedule.Format(start)} – zapamatuj si, kde tenhle kód je, a vrať se.")
+                        }
+                        else
+                        {
+                            @("Lov ještě nezačal. Zapamatuj si, kde tenhle kód je, a vrať se, až začne.")
+                        }
+                    </p>
+                    break;
+
+                default:
+                    <p class="ph-floor-text">Tenhle kód nic nedává. Buď už neplatí, nebo se nenačetl celý – zkus ho naskenovat znovu.</p>
+                    break;
+            }
+        </PageShell>
+        break;
+}
+
+@code {
+    private enum PageState { Loading, Stranger, Admin, Claiming, Claimed, AlreadyClaimed, HuntNotOpen, NotFound }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    [Parameter]
+    public string Token { get; set; } = "";
+
+    private PageState state;
+    private string? playerId;
+    private FloorCodeView? floorCode;
+    private FloorClaimResult? result;
+
+    private string LoginHref => $"{AccountEndpoints.LoginPath}?returnUrl={Uri.EscapeDataString(FloorCodes.PathOf(Token))}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            state = PageState.Stranger;
+        }
+        else if (user.IsInRole(AppRoles.Admin))
+        {
+            floorCode = await Codes.FindByTokenAsync(Token);
+            state = PageState.Admin;
+        }
+        else
+        {
+            playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            state = PageState.Claiming;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || state != PageState.Claiming || playerId is null)
+            return;
+
+        result = await Codes.ClaimAsync(Token, playerId);
+        state = result.Outcome switch
+        {
+            FloorClaimOutcome.Claimed => PageState.Claimed,
+            FloorClaimOutcome.AlreadyClaimed => PageState.AlreadyClaimed,
+            FloorClaimOutcome.HuntNotOpen => PageState.HuntNotOpen,
+            _ => PageState.NotFound,
+        };
+        StateHasChanged();
+    }
+}

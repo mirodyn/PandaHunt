@@ -10,6 +10,7 @@ public class GameSettings
     public const int MaxCodeLength = 8;
     public const int MaxHuntIntroLength = 4000;
     public const int MaxBonusPoints = 1000;
+    public const int MaxQrBaseUrlLength = 200;
 
     public int Id { get; set; } = SingletonId;
 
@@ -36,6 +37,12 @@ public class GameSettings
     public DateTimeOffset? RegistrationClosesAt { get; set; }
     public DateTimeOffset? HuntStartsAt { get; set; }
     public DateTimeOffset? HuntEndsAt { get; set; }
+
+    /// <summary>
+    /// Site address the "Body na zemi" QR codes point to, e.g. "https://www.pandahunt.cz" (no trailing slash).
+    /// null = the address the admin page is open on. Logins are per hostname, so use the one players log in on.
+    /// </summary>
+    public string? QrBaseUrl { get; set; }
 
     /// <summary>Intro text on the hunt page (/lov). Paragraphs are separated by a blank line; empty = sample text.</summary>
     public string? HuntIntro { get; set; }

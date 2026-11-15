@@ -280,6 +280,60 @@ namespace PandaHunt.Data.Migrations
                     b.ToTable("BonusEventClaims");
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.FloorCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("FloorCodes");
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.FloorCodeClaim", b =>
+                {
+                    b.Property<int>("CodeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PlayerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ClaimedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("CodeId", "PlayerId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("FloorCodeClaims");
+                });
+
             modelBuilder.Entity("PandaHunt.Data.GameSettings", b =>
                 {
                     b.Property<int>("Id")
@@ -314,6 +368,10 @@ namespace PandaHunt.Data.Migrations
 
                     b.Property<bool>("Phase0Enabled")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("QrBaseUrl")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset?>("RegistrationClosesAt")
                         .HasColumnType("TEXT");
@@ -431,6 +489,28 @@ namespace PandaHunt.Data.Migrations
                     b.ToTable("TaskCompletions");
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.TaskStar", b =>
+                {
+                    b.Property<int>("TaskId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Color")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PlayerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SinceUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TaskId", "Color");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("TaskStars");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -501,6 +581,25 @@ namespace PandaHunt.Data.Migrations
                     b.Navigation("Player");
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.FloorCodeClaim", b =>
+                {
+                    b.HasOne("PandaHunt.Data.FloorCode", "Code")
+                        .WithMany()
+                        .HasForeignKey("CodeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Code");
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("PandaHunt.Data.Message", b =>
                 {
                     b.HasOne("PandaHunt.Data.ApplicationUser", "Author")
@@ -524,6 +623,25 @@ namespace PandaHunt.Data.Migrations
                 });
 
             modelBuilder.Entity("PandaHunt.Data.TaskCompletion", b =>
+                {
+                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PandaHunt.Data.HuntTask", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.TaskStar", b =>
                 {
                     b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
                         .WithMany()

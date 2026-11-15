@@ -2,7 +2,7 @@
 
 <div class="ph-page">
     <div class="ph-display ph-title"><a href="/" class="ph-title-link" title="Na úvod">PandaHunt IV</a></div>
-    <div class="ph-card @(Wide ? "ph-card-wide" : null)">
+    <div class="ph-card @(Wide ? "ph-card-wide" : null) @CardClass">
         <h1 class="ph-display ph-page-title">@Title</h1>
         @ChildContent
         @if (ShowBackLink)
@@ -31,6 +31,10 @@
     /// <summary>Wider card for pages with tables/forms (admin).</summary>
     [Parameter]
     public bool Wide { get; set; }
+
+    /// <summary>Extra class on the card, e.g. "ph-card-medium" (a bit wider than the default 480px).</summary>
+    [Parameter]
+    public string? CardClass { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }

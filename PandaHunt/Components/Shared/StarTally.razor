@@ -1,0 +1,30 @@
+@* How many gold, silver and bronze stars someone holds: three stars (best first) with the counts inside. *@
+
+@if (ShowZero || Counts.Count > 0)
+{
+    <span class="ph-star-tally @Class">
+        @foreach (var color in StarColors.All)
+        {
+            var n = Counts[color];
+            if (n > 0 || ShowZero)
+            {
+                <StarIcon Color="color" Count="n" />
+            }
+        }
+    </span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public StarCounts Counts { get; set; } = StarCounts.None;
+
+    /// <summary>
+    /// Always show all three, a light grey star with 0 for a colour they have none of. Otherwise only the colours
+    /// they hold are shown (and nothing at all without any star).
+    /// </summary>
+    [Parameter]
+    public bool ShowZero { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+}

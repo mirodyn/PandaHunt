@@ -13,17 +13,34 @@
         letter-spacing: 0.15em;
         text-transform: uppercase;
         text-align: left;
+        white-space: nowrap;
     }
-
-        .ph-ranking th:last-child {
-            text-align: right;
-        }
 
     .ph-ranking td {
         padding: 0.55rem 0.6rem;
         border-bottom: 1px solid #d9d9d9;
         vertical-align: middle;
     }
+
+    /* No extra space at the table's outer edges. */
+    .ph-ranking th:first-child,
+    .ph-ranking td:first-child {
+        padding-left: 0.3rem;
+    }
+
+    .ph-ranking th:last-child,
+    .ph-ranking td:last-child {
+        padding-right: 0.3rem;
+    }
+
+.ph-ranking th.ph-rank-th-right {
+    text-align: right;
+}
+
+/* "#" instead of "Pořadí" on phones. */
+.ph-rank-th-short {
+    display: none;
+}
 
 .ph-rank-place {
     width: 3.5rem;
@@ -32,6 +49,7 @@
 }
 
 .ph-rank-name {
+    width: 100%; /* takes whatever the number columns leave */
     overflow-wrap: anywhere;
 }
 
@@ -41,6 +59,34 @@
     text-align: right;
     white-space: nowrap;
 }
+
+.ph-rank-stars {
+    font-size: 1.1rem;
+    line-height: 0;
+    white-space: nowrap;
+}
+
+/* Points + stars together: lighter, in brackets. */
+.ph-rank-total {
+    font-size: 1.3rem;
+    line-height: 1;
+    text-align: right;
+    white-space: nowrap;
+    opacity: 0.55;
+}
+
+/* "(★ 3, ★ 2, ★ 1)" in the hint above the table. */
+.ph-rank-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+    .ph-rank-legend ::deep .ph-star {
+        font-size: 0.95rem;
+    }
 
 /* Your own row */
 .ph-rank-mine {
@@ -110,3 +156,62 @@
         outline: 2px solid currentColor;
         outline-offset: 2px;
     }
+
+/* ---------- Phones: five columns in ~275px, so everything gets tighter ---------- */
+
+@media (max-width: 600px) {
+    .ph-ranking th {
+        padding: 0 0.25rem 0.4rem;
+        font-size: 0.65rem;
+        letter-spacing: 0.05em;
+    }
+
+    .ph-ranking td {
+        padding: 0.5rem 0.25rem;
+    }
+
+    .ph-ranking th:first-child,
+    .ph-ranking td:first-child {
+        padding-left: 0;
+    }
+
+    .ph-ranking th:last-child,
+    .ph-ranking td:last-child {
+        padding-right: 0;
+    }
+
+    /* Still read out by screen readers ("#" is hidden from them). */
+    .ph-rank-th-long {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .ph-rank-th-short {
+        display: inline;
+    }
+
+    .ph-rank-place {
+        width: auto;
+        font-size: 1.3rem;
+    }
+
+    .ph-rank-name {
+        font-size: 0.9rem;
+    }
+
+    .ph-rank-points {
+        font-size: 1.3rem;
+    }
+
+    .ph-rank-stars {
+        font-size: 0.85rem;
+    }
+
+    .ph-rank-total {
+        font-size: 1.05rem;
+    }
+}

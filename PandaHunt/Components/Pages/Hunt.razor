@@ -7,6 +7,7 @@
 @inject HuntTasks Tasks
 @inject Scoreboard Scoreboard
 @inject BonusEvents Events
+@inject TaskStars Stars
 
 <PageTitle>Lov · PandaHunt IV</PageTitle>
 
@@ -158,11 +159,20 @@ else
                     <div class="ph-points-rank">@rank. místo v žebříčku</div>
                 }
 
+                <div class="ph-points-stars">
+                    <StarTally Counts="StarCounts.From(stars.Select(s => s.Color))" ShowZero="true" />
+                    <p>Hvězdy za úkoly ti přidávají body (3, 2 a 1), dokud je držíš – jiný lovec ti je může přebrat.</p>
+                </div>
+
+                @if (stars.Count > 0)
+                {
+                    <StarList Stars="stars" />
+                }
                 @if (history is { Count: > 0 })
                 {
                     <PointsHistory Entries="history" />
                 }
-                else if (history is not null)
+                else if (history is not null && stars.Count == 0)
                 {
                     <p class="ph-points-empty">Zatím žádné body. První přijdou se splněným úkolem.</p>
                 }
@@ -182,6 +192,7 @@ else
     private IReadOnlyList<HuntTaskView>? tasks;
     private IReadOnlySet<int> completed = new HashSet<int>();
     private IReadOnlyList<PointEntryView>? history;
+    private IReadOnlyList<HeldStar> stars = [];
     private IReadOnlyList<BonusEventView>? events;
     private IReadOnlySet<int> claimedEvents = new HashSet<int>();
     private int? rank;
@@ -198,7 +209,8 @@ else
         _ => "Náhled pro admina – hráči tuhle stránku uvidí, až nastavíš začátek lovu.",
     };
 
-    private int Total => history?.Sum(e => e.Points) ?? 0;
+    // Same as the leaderboard: points plus the stars held now. (Computed here, as admins previewing aren't on the leaderboard.)
+    private int Total => (history?.Sum(e => e.Points) ?? 0) + stars.Sum(s => StarColors.Points(s.Color));
 
     private IEnumerable<string> IntroParagraphs =>
         (string.IsNullOrWhiteSpace(Settings.Current.HuntIntro) ? GameSettings.SampleHuntIntro : Settings.Current.HuntIntro)
@@ -230,6 +242,7 @@ else
         tasks = await Tasks.GetAllAsync();
         completed = await Tasks.GetCompletedTaskIdsAsync(playerId);
         history = await Scoreboard.GetPlayerHistoryAsync(playerId);
+        stars = await Stars.GetHeldAsync(playerId);
         rank = (await Scoreboard.GetStandingsAsync()).FirstOrDefault(s => s.PlayerId == playerId)?.Rank;
         events = await Events.GetAllAsync();
         claimedEvents = await Events.GetClaimedEventIdsAsync(playerId);

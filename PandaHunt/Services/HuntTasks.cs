@@ -11,7 +11,7 @@ public sealed record TaskEdit(int Id, string Name, string Type, DateTimeOffset? 
 /// The hunt's tasks and who has finished them. Connected pages are notified on every change
 /// (in-process, fine for a single server instance).
 /// </summary>
-public sealed class HuntTasks(IDbContextFactory<AppDbContext> dbFactory, TimeProvider time)
+public sealed class HuntTasks(IDbContextFactory<AppDbContext> dbFactory, TimeProvider time, Scoreboard scoreboard)
 {
     /// <summary>Raised after a task is added, edited or deleted, or completions change.</summary>
     public event Action? Changed;
@@ -108,13 +108,14 @@ public sealed class HuntTasks(IDbContextFactory<AppDbContext> dbFactory, TimePro
         return [];
     }
 
-    /// <summary>Deletes a task together with its completions.</summary>
+    /// <summary>Deletes a task together with its completions and stars.</summary>
     public async Task DeleteAsync(int taskId, CancellationToken cancellationToken = default)
     {
         await using (var db = await dbFactory.CreateDbContextAsync(cancellationToken))
             await db.HuntTasks.Where(t => t.Id == taskId).ExecuteDeleteAsync(cancellationToken);
 
         Changed?.Invoke();
+        scoreboard.NotifyChanged(); // the task's stars are gone from their holders' scores
     }
 
     /// <summary>The task whose <see cref="HuntTask.Link"/> is this address (a task page asking "which task am I?").</summary>

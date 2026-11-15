@@ -1,5 +1,6 @@
-@* Anyone's point log, opened from the leaderboard: how they got (and lost) their points. *@
+@* Anyone's point log, opened from the leaderboard: the stars they hold and how they got (and lost) their points. *@
 @inject Scoreboard Scoreboard
+@inject TaskStars Stars
 
 <MudDialog>
     <TitleContent>
@@ -13,21 +14,29 @@
     </TitleContent>
     <DialogContent>
         <div class="ph-player-summary">
-            <PointsBadge Value="Player.Points" Class="ph-display ph-player-total" />
+            <PointsBadge Value="Player.Total" Class="ph-display ph-player-total" />
+            <StarTally Counts="Player.Stars" Class="ph-player-stars" />
             <span class="ph-player-rank">@Player.Rank. místo v žebříčku</span>
         </div>
 
-        @if (history is null)
+        @if (history is null || stars is null)
         {
             <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="my-4" />
         }
-        else if (history.Count == 0)
+        else if (history.Count == 0 && stars.Count == 0)
         {
             <p class="ph-player-empty">Zatím žádné body.</p>
         }
         else
         {
-            <PointsHistory Entries="history" MaxHeight="min(22rem, 50vh)" />
+            @if (stars.Count > 0)
+            {
+                <StarList Stars="stars" />
+            }
+            @if (history.Count > 0)
+            {
+                <PointsHistory Entries="history" MaxHeight="min(22rem, 50vh)" />
+            }
         }
     </DialogContent>
     <DialogActions>
@@ -47,7 +56,11 @@
     public bool IsMe { get; set; }
 
     private IReadOnlyList<PointEntryView>? history;
+    private IReadOnlyList<HeldStar>? stars;
 
-    protected override async Task OnInitializedAsync() =>
+    protected override async Task OnInitializedAsync()
+    {
         history = await Scoreboard.GetPlayerHistoryAsync(Player.PlayerId);
+        stars = await Stars.GetHeldAsync(Player.PlayerId);
+    }
 }

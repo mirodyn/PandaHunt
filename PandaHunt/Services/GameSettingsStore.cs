@@ -42,6 +42,7 @@ public sealed class GameSettingsStore(IDbContextFactory<AppDbContext> dbFactory)
         var copy = settings.Clone();
         copy.Id = GameSettings.SingletonId;
         copy.Phase0Code = GameSettings.NormalizeCode(copy.Phase0Code);
+        copy.QrBaseUrl = string.IsNullOrWhiteSpace(copy.QrBaseUrl) ? null : copy.QrBaseUrl.Trim().TrimEnd('/');
 
         var errors = Validate(copy);
         if (errors.Count > 0)
@@ -80,6 +81,11 @@ public sealed class GameSettingsStore(IDbContextFactory<AppDbContext> dbFactory)
             errors.Add("Lov musí končit až po začátku.");
         if (s.HuntIntro?.Length > GameSettings.MaxHuntIntroLength)
             errors.Add($"Úvodní text lovu může mít nejvýš {GameSettings.MaxHuntIntroLength} znaků.");
+        if (s.QrBaseUrl is { } qr && (qr.Length > GameSettings.MaxQrBaseUrlLength
+                || !Uri.TryCreate(qr, UriKind.Absolute, out var qrUri)
+                || qrUri.Scheme is not ("https" or "http")
+                || qrUri.Query.Length > 0 || qrUri.Fragment.Length > 0))
+            errors.Add("Adresa pro QR kódy musí být celá adresa webu, např. https://www.pandahunt.cz.");
 
         return errors;
     }

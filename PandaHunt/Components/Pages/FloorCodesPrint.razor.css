@@ -1,0 +1,58 @@
+.ph-print-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.5rem;
+}
+
+    .ph-print-controls ::deep .ph-print-size {
+        flex: 0 0 9rem;
+    }
+
+.ph-print-hint {
+    color: #555;
+    font-size: 0.85rem;
+}
+
+/* The codes, at their real size (the page's CSS cm = printed cm at 100 % scale). */
+.ph-print-sheet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4cm;
+    margin: 1rem 0;
+}
+
+.ph-print-qr {
+    margin: 0;
+    padding: 0.15cm;
+    width: calc(var(--qr-size) + 0.3cm);
+    outline: 1px dashed #9e9e9e; /* cutting line */
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+    .ph-print-qr img {
+        display: block;
+        width: var(--qr-size);
+        height: var(--qr-size);
+    }
+
+    .ph-print-qr figcaption {
+        margin-top: 0.1cm;
+        color: #555;
+        font-size: 7pt;
+        line-height: 1.2;
+        text-align: center;
+        overflow-wrap: anywhere;
+    }
+
+@media print {
+    .ph-print-controls,
+    .ph-print-hint {
+        display: none;
+    }
+
+    .ph-print-sheet {
+        margin: 0;
+    }
+}

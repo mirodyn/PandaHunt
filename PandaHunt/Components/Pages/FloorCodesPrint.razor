@@ -1,0 +1,77 @@
+@page "/admin/tisk-qr"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject FloorCodes Codes
+@inject IJSRuntime JS
+
+@*
+    Print sheet for the "Body na zemi" QR codes (Administrace → Body na zemi → Tisk QR kódů): every switched-on
+    code at the chosen size, with a dashed cutting line. When printing, only the codes are on paper (app.css).
+*@
+
+<PageTitle>Tisk QR kódů · PandaHunt IV</PageTitle>
+
+<PageShell Title="Tisk QR kódů" Wide="true" BackHref="/admin" BackText="Do administrace">
+    <div class="ph-print-controls">
+        <MudSelect T="int" @bind-Value="sizeCm" Label="Velikost" Variant="Variant.Outlined" Dense="true" Class="ph-print-size">
+            @foreach (var size in Sizes)
+            {
+                <MudSelectItem Value="size">@size cm</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSwitch T="bool" @bind-Value="showNames" Color="Color.Primary" Label="Názvy pod kódy" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintAsync"
+                   Disabled="@(codes is not { Count: > 0 })">Vytisknout</MudButton>
+    </div>
+    <p class="ph-print-hint">
+        Tiskni v měřítku 100 % (ne „přizpůsobit stránce“), ať mají kódy přesně zvolenou velikost. Stříhej po čárkované čáře –
+        bílý okraj kolem kódu nech, telefony ho potřebují. Názvy uvidí každý, kdo kód najde, takže je před nalepením
+        odstřihni, nebo je vypni.
+    </p>
+
+    @if (codes is null)
+    {
+        <p>Načítám…</p>
+    }
+    else if (codes.Count == 0)
+    {
+        <p>Žádné zapnuté kódy. Přidej je v Administraci → Body na zemi.</p>
+    }
+    else
+    {
+        <div class="ph-print-sheet" style="--qr-size: @(sizeCm)cm">
+            @foreach (var qr in codes)
+            {
+                <figure class="ph-print-qr">
+                    <img src="@FloorCodes.QrImageOf(qr.Id)" alt="QR kód @qr.Name" />
+                    @if (showNames)
+                    {
+                        <figcaption>@qr.Name · @CzechText.Points(qr.Points)</figcaption>
+                    }
+                </figure>
+            }
+        </div>
+    }
+</PageShell>
+
+@code {
+    private static readonly int[] Sizes = [3, 4, 5, 6, 8, 10];
+
+    private IReadOnlyList<FloorCodeView>? codes;
+    private int sizeCm = 5;
+    private bool showNames = true;
+
+    protected override async Task OnInitializedAsync() =>
+        codes = (await Codes.GetAllAsync()).Where(c => c.IsActive).OrderBy(c => c.Id).ToList();
+
+    private async Task PrintAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("print");
+        }
+        catch (JSDisconnectedException)
+        {
+            // Browser gone.
+        }
+    }
+}

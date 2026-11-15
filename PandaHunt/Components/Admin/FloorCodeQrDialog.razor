@@ -1,0 +1,31 @@
+@* One code's QR: preview, its address, download as SVG (sharp at any print size). *@
+@inject FloorCodes Codes
+@inject NavigationManager Navigation
+
+<MudDialog>
+    <DialogContent>
+        <div class="ph-admin-qr">
+            <img src="@FloorCodes.QrImageOf(Code.Id)" alt="QR kód @Code.Name" />
+            <div class="ph-admin-qr-url">@Codes.UrlOf(Code.Token, Navigation.BaseUri)</div>
+            @if (!Code.IsActive)
+            {
+                <p class="ph-admin-muted">Kód je vypnutý – hráči za něj teď nic nedostanou.</p>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Href="@FloorCodes.PathOf(Code.Token)" Target="_blank" StartIcon="@Icons.Material.Filled.OpenInNew">Vyzkoušet</MudButton>
+        @* "download": the browser saves the file instead of Blazor treating the link as a page. *@
+        <MudButton Href="@FloorCodes.QrImageOf(Code.Id, download: true)" download="@($"pandahunt-qr-{Code.Id}.svg")"
+                   StartIcon="@Icons.Material.Filled.Download">Stáhnout SVG</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => Dialog.Close()">Zavřít</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public FloorCodeView Code { get; set; } = default!;
+}

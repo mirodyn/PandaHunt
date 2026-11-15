@@ -15,6 +15,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 
     public DbSet<TaskCompletion> TaskCompletions => Set<TaskCompletion>();
 
+    public DbSet<TaskStar> TaskStars => Set<TaskStar>();
+
+    public DbSet<FloorCode> FloorCodes => Set<FloorCode>();
+
+    public DbSet<FloorCodeClaim> FloorCodeClaims => Set<FloorCodeClaim>();
+
     public DbSet<BonusEvent> BonusEvents => Set<BonusEvent>();
 
     public DbSet<BonusEventClaim> BonusEventClaims => Set<BonusEventClaim>();
@@ -28,6 +34,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             settings.Property(s => s.Id).ValueGeneratedNever();
             settings.Property(s => s.Phase0Code).HasMaxLength(Data.GameSettings.MaxCodeLength);
             settings.Property(s => s.HuntIntro).HasMaxLength(Data.GameSettings.MaxHuntIntroLength);
+            settings.Property(s => s.QrBaseUrl).HasMaxLength(Data.GameSettings.MaxQrBaseUrlLength);
         });
 
         builder.Entity<Message>(message =>
@@ -64,6 +71,39 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
                 .HasForeignKey(c => c.TaskId)
                 .OnDelete(DeleteBehavior.Cascade);
             completion.HasOne(c => c.Player)
+                .WithMany()
+                .HasForeignKey(c => c.PlayerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TaskStar>(star =>
+        {
+            star.HasKey(s => new { s.TaskId, s.Color });
+            star.HasOne(s => s.Task)
+                .WithMany()
+                .HasForeignKey(s => s.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+            star.HasOne(s => s.Player)
+                .WithMany()
+                .HasForeignKey(s => s.PlayerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FloorCode>(code =>
+        {
+            code.Property(c => c.Token).HasMaxLength(FloorCode.TokenLength);
+            code.HasIndex(c => c.Token).IsUnique();
+            code.Property(c => c.Name).HasMaxLength(FloorCode.MaxNameLength);
+        });
+
+        builder.Entity<FloorCodeClaim>(claim =>
+        {
+            claim.HasKey(c => new { c.CodeId, c.PlayerId });
+            claim.HasOne(c => c.Code)
+                .WithMany()
+                .HasForeignKey(c => c.CodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            claim.HasOne(c => c.Player)
                 .WithMany()
                 .HasForeignKey(c => c.PlayerId)
                 .OnDelete(DeleteBehavior.Cascade);

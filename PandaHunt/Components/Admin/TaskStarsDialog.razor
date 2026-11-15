@@ -1,0 +1,117 @@
+@* Who holds a task's gold, silver and bronze star. *@
+@inject TaskStars Stars
+@inject Scoreboard Scoreboard
+@inject GameSchedule Schedule
+
+<MudDialog>
+    <DialogContent>
+        @if (players is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mb-4">
+                Hvězdu má vždycky jen jeden lovec a přičítá se mu k bodům, dokud ji drží (zlatá 3, stříbrná 2,
+                bronzová 1). Když ji dáš někomu jinému, původnímu majiteli body za ni zmizí. Zatím je rozdáváš ručně,
+                časem je budou úkoly přidělovat samy.
+            </MudText>
+            <MudStack Spacing="3">
+                @foreach (var color in StarColors.All)
+                {
+                    <div class="ph-admin-star">
+                        <StarIcon Color="color" />
+                        <MudSelect T="string"
+                                   Value="@(chosen.GetValueOrDefault(color) ?? Nobody)"
+                                   ValueChanged="@(id => Choose(color, id))"
+                                   Label="@StarColors.Label(color)"
+                                   Variant="Variant.Outlined"
+                                   HelperText="@SinceText(color)"
+                                   ToStringFunc="PlayerName">
+                            <MudSelectItem Value="@Nobody">nikdo</MudSelectItem>
+                            @foreach (var player in players)
+                            {
+                                <MudSelectItem Value="@player.PlayerId">@player.PlayerName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                }
+            </MudStack>
+            @if (errors.Count > 0)
+            {
+                <ul class="ph-form-errors mt-3" role="alert">
+                    @foreach (var error in errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="saving">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="@(saving || players is null)">Uložit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    // The select's value for "nobody" (MudSelect doesn't do null items well).
+    private const string Nobody = "";
+
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public int TaskId { get; set; }
+
+    private IReadOnlyList<Standing>? players;
+    private IReadOnlyList<StarHolder> holders = [];
+    private readonly Dictionary<StarColor, string> chosen = [];
+    private IReadOnlyList<string> errors = [];
+    private bool saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Same people as on the leaderboard (players, not admins), alphabetically.
+        var standings = await Scoreboard.GetStandingsAsync();
+        holders = await Stars.GetHoldersAsync(TaskId);
+        foreach (var holder in holders)
+            chosen[holder.Color] = holder.PlayerId;
+        players = standings.OrderBy(p => p.PlayerName, StringComparer.CurrentCultureIgnoreCase).ToList();
+    }
+
+    private void Choose(StarColor color, string? playerId)
+    {
+        if (string.IsNullOrEmpty(playerId))
+            chosen.Remove(color);
+        else
+            chosen[color] = playerId;
+        errors = [];
+    }
+
+    private string PlayerName(string? id) =>
+        string.IsNullOrEmpty(id) ? "nikdo"
+        : players?.FirstOrDefault(p => p.PlayerId == id)?.PlayerName
+          ?? holders.FirstOrDefault(h => h.PlayerId == id)?.PlayerName // e.g. a holder who has become an admin since
+          ?? "";
+
+    private string? SinceText(StarColor color) =>
+        holders.FirstOrDefault(h => h.Color == color) is { } holder && chosen.GetValueOrDefault(color) == holder.PlayerId
+            ? $"Drží od {Schedule.Format(holder.SinceUtc)}"
+            : null;
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            errors = await Stars.SetHoldersAsync(TaskId, chosen);
+            if (errors.Count == 0)
+                Dialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

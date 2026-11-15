@@ -1,0 +1,22 @@
+@* The stars someone holds, one line each: the star, which task it's from, since when, and what it's worth.
+   Shown above the point history (your own on /lov, anyone's from the leaderboard). *@
+@inject GameSchedule Schedule
+
+<ul class="ph-star-list" aria-label="Hvězdy">
+    @foreach (var star in Stars)
+    {
+        <li>
+            <StarIcon Color="star.Color" Class="ph-star-list-icon" />
+            <div class="ph-star-list-text">
+                <div class="ph-star-list-task">@star.TaskName</div>
+                <div class="ph-star-list-when">@StarColors.Label(star.Color) · od @Schedule.FormatDate(star.SinceUtc)</div>
+            </div>
+            <strong><PointsBadge Value="StarColors.Points(star.Color)" Signed="true" /></strong>
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<HeldStar> Stars { get; set; } = [];
+}

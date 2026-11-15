@@ -30,8 +30,12 @@ primary_region = 'ams'
     hard_limit = 250
     soft_limit = 200
 
+# Start the app again whenever it stops, also after a clean exit - the hard reset on /admin (tab "Reset")
+# shuts the app down on purpose and relies on this. Fly's default ("on-failure") only restarts after a crash.
+[[restart]]
+  policy = 'always'
+
 [[vm]]
-  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 256

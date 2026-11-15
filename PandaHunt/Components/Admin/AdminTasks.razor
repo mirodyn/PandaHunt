@@ -61,6 +61,9 @@
                 <MudIconButton Icon="@Icons.Material.Filled.Checklist" Size="Size.Small"
                                aria-label="@($"Kdo splnil {context.Name}")" title="Kdo splnil"
                                OnClick="() => CompletionsAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.StarOutline" Size="Size.Small"
+                               aria-label="@($"Hvězdy za {context.Name}")" title="Hvězdy"
+                               OnClick="() => StarsAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                aria-label="@($"Upravit {context.Name}")" title="Upravit"
                                OnClick="() => EditAsync(context)" />
@@ -104,12 +107,22 @@
             Snackbar.Add("Uloženo.", Severity.Success);
     }
 
+    private async Task StarsAsync(HuntTaskView task)
+    {
+        var parameters = new DialogParameters<TaskStarsDialog> { { d => d.TaskId, task.Id } };
+        var dialog = await Dialogs.ShowAsync<TaskStarsDialog>($"Hvězdy: {task.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await dialog.Result is { Canceled: false })
+            Snackbar.Add("Hvězdy uloženy.", Severity.Success);
+    }
+
     private async Task DeleteAsync(HuntTaskView task)
     {
         var done = task.CompletedCount > 0 ? $" Zmizí i záznamy o tom, kdo ho splnil ({task.CompletedCount})." : "";
         var confirmed = await Dialogs.ShowMessageBoxAsync(
             "Smazat úkol",
-            $"Opravdu smazat úkol „{task.Name}“?{done} Body hráčů zůstanou. Nejde to vrátit.",
+            $"Opravdu smazat úkol „{task.Name}“?{done} Hvězdy za tenhle úkol hráčům zmizí, body z historie zůstanou. Nejde to vrátit.",
             yesText: "Smazat",
             cancelText: "Zrušit");
         if (confirmed != true)

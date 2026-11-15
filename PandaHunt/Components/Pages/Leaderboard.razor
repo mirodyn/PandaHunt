@@ -9,11 +9,19 @@
 
 <PageTitle>Žebříček · PandaHunt IV</PageTitle>
 
-<PageShell Title="Žebříček">
+@* A bit wider than the usual card: five columns. *@
+<PageShell Title="Žebříček" CardClass="ph-card-medium">
     <p>@Note</p>
     @if (standings is { Count: > 0 })
     {
         <p class="ph-rank-hint">Klikni na lovce a uvidíš, za co má body.</p>
+        <p class="ph-rank-hint">
+            Pořadí určuje celkový součet: body plus hvězdy
+            (<span class="ph-rank-legend"><StarIcon Color="StarColor.Gold" /> 3</span>,
+            <span class="ph-rank-legend"><StarIcon Color="StarColor.Silver" /> 2</span>,
+            <span class="ph-rank-legend"><StarIcon Color="StarColor.Bronze" /> 1</span>).
+            Hvězdu ale může přebrat jiný lovec.
+        </p>
     }
 
     @if (standings is null)
@@ -29,9 +37,11 @@
         <table class="ph-ranking">
             <thead>
                 <tr>
-                    <th scope="col">Pořadí</th>
+                    <th scope="col"><span class="ph-rank-th-long">Pořadí</span><span class="ph-rank-th-short" aria-hidden="true">#</span></th>
                     <th scope="col">Lovec</th>
-                    <th scope="col">Body</th>
+                    <th scope="col" class="ph-rank-th-right">Body</th>
+                    <th scope="col">Hvězdy</th>
+                    <th scope="col" class="ph-rank-th-right">Celkem</th>
                 </tr>
             </thead>
             <tbody>
@@ -48,6 +58,8 @@
                             }
                         </td>
                         <td class="ph-display ph-rank-points"><PointsBadge Value="row.Points" /></td>
+                        <td class="ph-rank-stars"><StarTally Counts="row.Stars" ShowZero="true" /></td>
+                        <td class="ph-display ph-rank-total">(<PointsBadge Value="row.Total" />)</td>
                     </tr>
                 }
             </tbody>

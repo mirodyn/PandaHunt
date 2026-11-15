@@ -1,0 +1,215 @@
+@* "Body na zemi": QR codes to print and stick around town. Scanning one gives a player its points (once). *@
+@implements IDisposable
+@inject FloorCodes Codes
+@inject GameSchedule Schedule
+@inject GameSettingsStore Settings
+@inject NavigationManager Navigation
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<section class="ph-admin-section">
+    <div class="ph-admin-heading">
+        <h2 class="ph-display">Body na zemi</h2>
+        <div class="ph-admin-heading-buttons">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print"
+                       Href="/admin/tisk-qr"
+                       Target="_blank"
+                       Disabled="@(codes is null || !codes.Any(c => c.IsActive))">Tisk QR kódů</MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="() => EditAsync(null)">Přidat kódy</MudButton>
+        </div>
+    </div>
+    <p>
+        Vytvoř kódy, vytiskni jejich QR (s bambusem uprostřed) a rozmísti je po městě. Hráč, který kód naskenuje, dostane jeho body –
+        každý kód jen jednou a jen když běží lov. V historii bodů u nich bude „@FloorCodes.Comment“; název kódu hráči nevidí, takže do něj
+        klidně napiš, kde visí.
+    </p>
+    <p>
+        Kdo není přihlášený (třeba zvědavý kolemjdoucí), uvidí jen „Soukromá hra – nech prosím kód na místě“ a tlačítko pro přihlášení.
+        Nedozví se nic dalšího, ani jestli je kód pravý.
+    </p>
+    @if (RegistrationOpenToAnyone)
+    {
+        <p class="ph-banner">
+            <strong>Pozor:</strong> registrace ještě není uzavřená a nechce kód z fáze 0@(Settings.Current.RegistrationClosesAt is { } closes ? $" (zavírá se {Schedule.Format(closes)})" : "").
+            Dokud to tak je, může se zaregistrovat kdokoli – i kolemjdoucí, který QR kód naskenuje – a body sebrat. Než kódy rozmístíš,
+            nastav v záložce Nastavení hry, kdy se registrace zavírá, nebo zapni fázi 0.
+        </p>
+    }
+
+    <MudTable T="FloorCodeView"
+              Items="codes"
+              Loading="codes is null"
+              Dense="true"
+              Hover="true"
+              Elevation="0"
+              Breakpoint="Breakpoint.Sm"
+              Class="ph-admin-table mt-4">
+        <HeaderContent>
+            <MudTh>Kód</MudTh>
+            <MudTh>Body</MudTh>
+            <MudTh>Stav</MudTh>
+            <MudTh>Našli</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Kód"><strong>@context.Name</strong></MudTd>
+            <MudTd DataLabel="Body">@context.Points</MudTd>
+            <MudTd DataLabel="Stav">
+                <span class="ph-pill ph-pill-small @(context.IsActive ? "on" : null)">@(context.IsActive ? "zapnutý" : "vypnutý")</span>
+            </MudTd>
+            <MudTd DataLabel="Našli">@context.ClaimCount</MudTd>
+            <MudTd Class="ph-admin-row-actions">
+                <MudIconButton Icon="@Icons.Material.Filled.QrCode2" Size="Size.Small"
+                               aria-label="@($"QR kód {context.Name}")" title="QR kód"
+                               OnClick="() => ShowQrAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.People" Size="Size.Small"
+                               aria-label="@($"Kdo našel {context.Name}")" title="Kdo našel"
+                               OnClick="() => ClaimsAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               aria-label="@($"Upravit {context.Name}")" title="Upravit"
+                               OnClick="() => EditAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small"
+                               aria-label="@($"Smazat {context.Name}")" title="Smazat"
+                               OnClick="() => DeleteAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Zatím žádné kódy.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</section>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Adresa v QR kódech</h2>
+    <p>
+        QR kódy teď vedou na <strong>@Codes.UrlOf("…", Navigation.BaseUri)</strong>. Přihlášení platí vždy jen pro jednu adresu
+        (www.pandahunt.cz, pandahunt.cz a pandahunt.fly.dev jsou pro prohlížeč tři různé weby), takže sem dej tu, na které hráči hrají.
+        Už vytištěné kódy mají adresu v sobě natrvalo – změna se týká jen nově vytištěných.
+    </p>
+    <div class="ph-admin-narrow">
+        <MudTextField T="string"
+                      @bind-Value="qrBaseUrl"
+                      Label="Adresa webu"
+                      Placeholder="@Navigation.BaseUri.TrimEnd('/')"
+                      Variant="Variant.Outlined"
+                      MaxLength="GameSettings.MaxQrBaseUrlLength"
+                      HelperText="Např. https://www.pandahunt.cz. Prázdné = adresa, na které máš teď otevřenou administraci." />
+    </div>
+    @if (urlErrors.Count > 0)
+    {
+        <ul class="ph-form-errors mt-3" role="alert">
+            @foreach (var error in urlErrors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    }
+    <div class="ph-admin-actions">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveUrlAsync" Disabled="savingUrl">Uložit adresu</MudButton>
+    </div>
+</section>
+
+@code {
+    private IReadOnlyList<FloorCodeView>? codes;
+    private string? qrBaseUrl;
+    private IReadOnlyList<string> urlErrors = [];
+    private bool savingUrl;
+
+    // Anyone could register (and then scan codes for points): no phase-0 code and registration not closed yet.
+    private bool RegistrationOpenToAnyone => !Settings.Current.Phase0Enabled && !Schedule.IsRegistrationClosed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Codes.Changed += OnCodesChanged;
+        Settings.Changed += OnSettingsChanged;
+        qrBaseUrl = Settings.Current.QrBaseUrl;
+        codes = await Codes.GetAllAsync();
+    }
+
+    private async Task EditAsync(FloorCodeView? code)
+    {
+        var parameters = new DialogParameters<EditFloorCodeDialog> { { d => d.EditedCode, code } };
+        var dialog = await Dialogs.ShowAsync<EditFloorCodeDialog>(code is null ? "Nové kódy" : $"Upravit kód {code.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await dialog.Result is { Canceled: false, Data: string summary })
+            Snackbar.Add(summary, Severity.Success);
+    }
+
+    private async Task ShowQrAsync(FloorCodeView code)
+    {
+        var parameters = new DialogParameters<FloorCodeQrDialog> { { d => d.Code, code } };
+        await Dialogs.ShowAsync<FloorCodeQrDialog>(code.Name, parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+    }
+
+    private async Task ClaimsAsync(FloorCodeView code)
+    {
+        var parameters = new DialogParameters<FloorClaimsDialog> { { d => d.CodeId, code.Id } };
+        await Dialogs.ShowAsync<FloorClaimsDialog>($"Kdo našel: {code.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+    }
+
+    private async Task DeleteAsync(FloorCodeView code)
+    {
+        var claims = code.ClaimCount > 0 ? $" Zmizí i záznam o tom, kdo ho našel ({code.ClaimCount})." : "";
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Smazat kód",
+            $"Opravdu smazat kód „{code.Name}“?{claims} Body, které za něj hráči dostali, zůstanou. Vytištěný QR pak už nebude nic dávat. Nejde to vrátit.",
+            yesText: "Smazat",
+            cancelText: "Zrušit");
+        if (confirmed != true)
+            return;
+
+        await Codes.DeleteAsync(code.Id);
+        Snackbar.Add($"Kód „{code.Name}“ smazán.", Severity.Success);
+    }
+
+    private async Task SaveUrlAsync()
+    {
+        savingUrl = true;
+        try
+        {
+            var edit = Settings.Edit();
+            edit.QrBaseUrl = qrBaseUrl;
+            urlErrors = await Settings.SaveAsync(edit);
+            if (urlErrors.Count == 0)
+            {
+                qrBaseUrl = Settings.Current.QrBaseUrl;
+                Snackbar.Add("Adresa uložena.", Severity.Success);
+            }
+        }
+        finally
+        {
+            savingUrl = false;
+        }
+    }
+
+    // Changed here, in another tab, or a player just found one: reload.
+    private void OnCodesChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            codes = await Codes.GetAllAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away while reloading.
+        }
+    });
+
+    // Registration dates or the QR address changed (the warning and the shown address follow).
+    private void OnSettingsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Codes.Changed -= OnCodesChanged;
+        Settings.Changed -= OnSettingsChanged;
+    }
+}

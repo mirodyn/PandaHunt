@@ -2,7 +2,6 @@ using System.Globalization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using PandaHunt.Account;
@@ -84,12 +83,18 @@ builder.Services.AddSingleton<Phase0Gate>();
 builder.Services.AddSingleton<MessageBoard>();
 builder.Services.AddSingleton<Scoreboard>();
 builder.Services.AddSingleton<HuntTasks>();
+builder.Services.AddSingleton<TaskStars>();
 builder.Services.AddSingleton<RegistrationBonuses>();
 builder.Services.AddSingleton<PandaFeeding>();
 builder.Services.AddSingleton<PandaPestering>();
 builder.Services.AddSingleton<BonusEvents>();
+builder.Services.AddSingleton<FloorCodes>();
+builder.Services.AddSingleton<AppReset>();
 
 var app = builder.Build();
+
+// A hard reset asked for on /admin: wipe the database and the login keys before anything opens them.
+AppReset.ApplyPending(app.Configuration, app.Environment.ContentRootPath, app.Logger);
 
 // Create / upgrade the database, load game settings and set up the admin role.
 using (var scope = app.Services.CreateScope())
@@ -114,16 +119,12 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapAccountEndpoints();
+app.MapFloorCodeEndpoints();
 
 app.Run();
 
 static void EnsureSqliteDirectoryExists(string connectionString, string contentRoot)
 {
-    var dataSource = new SqliteConnectionStringBuilder(connectionString).DataSource;
-    if (string.IsNullOrEmpty(dataSource) || dataSource == ":memory:")
-        return;
-
-    var directory = Path.GetDirectoryName(Path.GetFullPath(dataSource, contentRoot));
-    if (!string.IsNullOrEmpty(directory))
-        Directory.CreateDirectory(directory);
+    if (AppReset.DatabaseFileOf(connectionString, contentRoot) is { } file)
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
 }

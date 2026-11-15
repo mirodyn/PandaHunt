@@ -14,7 +14,10 @@
                    Disabled="@(standings is not { Count: > 0 })"
                    OnClick="() => AwardAsync(null)">Přidat body</MudButton>
     </div>
-    <p>Stejné pořadí vidí hráči na stránce <a href="/zebricek">Žebříček</a>. Admini (organizátoři) v něm nejsou.</p>
+    <p>
+        Stejné pořadí vidí hráči na stránce <a href="/zebricek">Žebříček</a>. Admini (organizátoři) v něm nejsou.
+        Body = historie níž + hvězdy, které hráč právě drží (rozdávají se u úkolů v záložce Úkoly).
+    </p>
 
     <MudTable T="Standing"
               Items="standings"
@@ -27,13 +30,25 @@
         <HeaderContent>
             <MudTh>Pořadí</MudTh>
             <MudTh>Hráč</MudTh>
+            <MudTh>Hvězdy</MudTh>
             <MudTh>Body</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Pořadí">@context.Rank.</MudTd>
             <MudTd DataLabel="Hráč"><strong>@context.PlayerName</strong></MudTd>
-            <MudTd DataLabel="Body"><strong>@context.Points</strong></MudTd>
+            <MudTd DataLabel="Hvězdy">
+                @if (context.Stars.Count > 0)
+                {
+                    <StarTally Counts="context.Stars" Class="ph-admin-stars" />
+                    <span class="ph-admin-muted"> = @CzechText.Points(context.Stars.Points)</span>
+                }
+                else
+                {
+                    @("–")
+                }
+            </MudTd>
+            <MudTd DataLabel="Body"><strong>@context.Total</strong></MudTd>
             <MudTd Class="ph-admin-row-actions">
                 <MudButton Variant="Variant.Outlined"
                            Size="Size.Small"
