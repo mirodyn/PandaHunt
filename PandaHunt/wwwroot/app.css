@@ -73,6 +73,23 @@ a {
     margin: 0.25rem 0 1rem;
 }
 
+/* Title with something at the right end of the same line (PageShell HeaderEnd). */
+.ph-page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.25rem 0 1rem;
+}
+
+    .ph-page-head .ph-page-title {
+        margin: 0;
+    }
+
+.ph-page-head-end {
+    min-width: 0;
+}
+
 .ph-card > p:not(.ph-form-alt) {
     margin: 0 0 0.75rem;
 }

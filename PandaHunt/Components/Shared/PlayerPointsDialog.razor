@@ -16,7 +16,10 @@
         <div class="ph-player-summary">
             <PointsBadge Value="Player.Total" Class="ph-display ph-player-total" />
             <StarTally Counts="Player.Stars" Class="ph-player-stars" />
-            <span class="ph-player-rank">@Player.Rank. místo v žebříčku</span>
+            @if (Player.Rank > 0)
+            {
+                <span class="ph-player-rank">@Player.Rank. místo v žebříčku</span>
+            }
         </div>
 
         @if (history is null || stars is null)

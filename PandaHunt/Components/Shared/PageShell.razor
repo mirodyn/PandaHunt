@@ -3,7 +3,17 @@
 <div class="ph-page">
     <div class="ph-display ph-title"><a href="/" class="ph-title-link" title="Na úvod">PandaHunt IV</a></div>
     <div class="ph-card @(Wide ? "ph-card-wide" : null) @CardClass">
-        <h1 class="ph-display ph-page-title">@Title</h1>
+        @if (HeaderEnd is null)
+        {
+            <h1 class="ph-display ph-page-title">@Title</h1>
+        }
+        else
+        {
+            <div class="ph-page-head">
+                <h1 class="ph-display ph-page-title">@Title</h1>
+                <div class="ph-page-head-end">@HeaderEnd</div>
+            </div>
+        }
         @ChildContent
         @if (ShowBackLink)
         {
@@ -35,6 +45,10 @@
     /// <summary>Extra class on the card, e.g. "ph-card-medium" (a bit wider than the default 480px).</summary>
     [Parameter]
     public string? CardClass { get; set; }
+
+    /// <summary>Something at the right end of the title line (e.g. your points on /lov).</summary>
+    [Parameter]
+    public RenderFragment? HeaderEnd { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
