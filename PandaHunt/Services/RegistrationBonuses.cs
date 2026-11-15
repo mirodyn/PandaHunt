@@ -27,7 +27,7 @@ public sealed class RegistrationBonuses(
 
         if (phase0Active && current.Phase0BonusPoints > 0)
             await scoreboard.AwardAsync(user.Id, current.Phase0BonusPoints,
-                "Bonus za nalezení kódu v nultém úkolu", Phase0Source, cancellationToken);
+                "Bonus za nalezení kódu na Vánočním večírku Výrostků", Phase0Source, cancellationToken);
 
         if (current.FirstPlayerBonusPoints > 0 && await IsFirstPlayerAsync(user.Id, cancellationToken))
             await scoreboard.AwardAsync(user.Id, current.FirstPlayerBonusPoints,
