@@ -1,0 +1,29 @@
+@page "/pravidla"
+@attribute [Authorize]
+
+<PageTitle>Pravidla · PandaHunt IV</PageTitle>
+
+@* Layout only, no real text yet. The text of each block lives in Components/Rules (the task-type texts in
+   TaskRules.razor, which task pages show too), so edit it there, not here. Images: drop files into
+   wwwroot/img/rules/ and set Src on the RuleImage slots. *@
+<PageShell Title="Pravidla" Wide="true" BackHref="/lov" BackText="Zpět na lov">
+
+    <RuleSection Title="Jak získat body">
+        <RulesPoints />
+        <RuleSection Title="Hvězdy" Sub="true" Icon="@Icons.Material.Filled.Star" IconTitle="Hvězdy">
+            <RulesStars />
+        </RuleSection>
+    </RuleSection>
+
+    @foreach (var key in TaskRules.Types)
+    {
+        var type = TaskTypes.Get(key);
+        <RuleSection Title="@type.Label" Icon="@type.Icon" IconTitle="@type.Label">
+            <TaskRules TypeKey="@key" />
+        </RuleSection>
+    }
+
+    <RuleSection Title="Bonusové akce" Icon="@Icons.Material.Filled.LocationOn" IconTitle="Bonusová akce">
+        <RulesBonusEvents />
+    </RuleSection>
+</PageShell>

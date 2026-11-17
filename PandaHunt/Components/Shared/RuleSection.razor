@@ -1,0 +1,39 @@
+@* One block of the rules page: a header with an optional icon on the side, then the content
+   (text, RuleImage slots...). Sub="true" makes it a smaller subsection (h3) that can sit inside another one. *@
+
+<section class="ph-rule @(Sub ? "ph-rule-sub" : null)">
+    <div class="ph-rule-head">
+        @if (Icon is not null)
+        {
+            <MudIcon Icon="@Icon" Title="@IconTitle" Class="ph-rule-icon" />
+        }
+        @if (Sub)
+        {
+            <h3 class="ph-display ph-rule-title">@Title</h3>
+        }
+        else
+        {
+            <h2 class="ph-display ph-rule-title">@Title</h2>
+        }
+    </div>
+    <div class="ph-rule-body">@ChildContent</div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>Icon beside the header (e.g. the task-type icon). Empty for sections without one.</summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    [Parameter]
+    public string? IconTitle { get; set; }
+
+    /// <summary>Subsection inside another section: smaller header.</summary>
+    [Parameter]
+    public bool Sub { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

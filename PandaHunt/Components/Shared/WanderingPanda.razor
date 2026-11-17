@@ -9,6 +9,7 @@
 @using System.Security.Claims
 @inject IJSRuntime JS
 @inject PandaFeeding Feeding
+@inject Teams Teams
 @inject PandaPestering Pestering
 @inject TimeProvider Time
 
@@ -92,7 +93,7 @@
         if (AuthenticationState is not null)
         {
             var user = (await AuthenticationState).User;
-            playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            playerId = await Teams.GetPlayerIdAsync(user);
             isAdmin = user.IsInRole(AppRoles.Admin);
         }
 

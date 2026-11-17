@@ -8,9 +8,12 @@ namespace PandaHunt.Services;
 /// A row of the leaderboard: <see cref="Points"/> from the point log plus the stars held right now.
 /// Players are ranked by <see cref="Total"/>; tied players share a rank (1, 1, 3, ...).
 /// </summary>
-public sealed record Standing(int Rank, string PlayerId, string PlayerName, int Points, StarCounts Stars)
+public sealed record Standing(int Rank, string PlayerId, string PlayerName, int Points, StarCounts Stars, IReadOnlyList<string>? Members = null)
 {
     public int Total => Points + Stars.Points;
+
+    /// <summary>A team: several logins share this player (<see cref="Members"/> lists their nicknames).</summary>
+    public bool IsTeam => Members is { Count: > 1 };
 }
 
 public sealed record PointEntryView(int Id, string PlayerId, string PlayerName, int Points, string? Comment, DateTime CreatedAtUtc);
@@ -30,17 +33,17 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
     /// <summary>Raised after points or stars change or the list of players changes (register, rename, delete, role).</summary>
     public event Action? Changed;
 
-    /// <summary>Ids of the admins, who aren't players (for use inside a query).</summary>
-    internal static IQueryable<string> AdminIds(AppDbContext db) =>
+    /// <summary>Ids of the admins' players: admins aren't players for the game (for use inside a query).</summary>
+    internal static IQueryable<string> AdminPlayerIds(AppDbContext db) =>
         db.UserRoles
             .Where(ur => db.Roles.Any(r => r.Id == ur.RoleId && r.Name == AppRoles.Admin))
-            .Select(ur => ur.UserId);
+            .Select(ur => db.Users.Where(u => u.Id == ur.UserId).Select(u => u.PlayerId).First());
 
     public async Task<IReadOnlyList<Standing>> GetStandingsAsync(CancellationToken cancellationToken = default)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-        var adminIds = AdminIds(db);
+        var adminIds = AdminPlayerIds(db);
 
         var stars = (await db.TaskStars
                 .AsNoTracking()
@@ -49,19 +52,21 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
             .GroupBy(s => s.PlayerId)
             .ToDictionary(g => g.Key, g => StarCounts.From(g.Select(s => s.Color)));
 
-        var players = await db.Users
+        var players = await db.Players
             .AsNoTracking()
-            .Where(u => !adminIds.Contains(u.Id))
-            .Select(u => new
+            .Where(p => !adminIds.Contains(p.Id))
+            .Select(p => new
             {
-                u.Id,
-                u.UserName,
-                Points = db.PointEntries.Where(p => p.PlayerId == u.Id).Sum(p => p.Points),
+                p.Id,
+                p.Name,
+                p.IsTeam,
+                Members = p.Members.OrderBy(m => m.RegisteredAtUtc).Select(m => m.UserName!).ToList(),
+                Points = db.PointEntries.Where(e => e.PlayerId == p.Id).Sum(e => e.Points),
             })
             .ToListAsync(cancellationToken);
 
         var ordered = players
-            .Select(p => new Standing(0, p.Id, p.UserName ?? "", p.Points, stars.GetValueOrDefault(p.Id, StarCounts.None)))
+            .Select(p => new Standing(0, p.Id, p.Name, p.Points, stars.GetValueOrDefault(p.Id, StarCounts.None), p.IsTeam ? p.Members : null))
             .OrderByDescending(p => p.Total)
             .ThenBy(p => p.PlayerName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
@@ -84,7 +89,7 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
             .AsNoTracking()
             .OrderByDescending(e => e.Id)
             .Take(HistoryCount)
-            .Select(e => new PointEntryView(e.Id, e.PlayerId, e.Player!.UserName!, e.Points, e.Comment, e.CreatedAtUtc))
+            .Select(e => new PointEntryView(e.Id, e.PlayerId, e.Player!.Name, e.Points, e.Comment, e.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
@@ -96,7 +101,7 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
             .AsNoTracking()
             .Where(e => e.PlayerId == playerId)
             .OrderByDescending(e => e.Id)
-            .Select(e => new PointEntryView(e.Id, e.PlayerId, e.Player!.UserName!, e.Points, e.Comment, e.CreatedAtUtc))
+            .Select(e => new PointEntryView(e.Id, e.PlayerId, e.Player!.Name, e.Points, e.Comment, e.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
@@ -120,7 +125,7 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
 
         await using (var db = await dbFactory.CreateDbContextAsync(cancellationToken))
         {
-            if (!await db.Users.AnyAsync(u => u.Id == playerId, cancellationToken))
+            if (!await db.Players.AnyAsync(p => p.Id == playerId, cancellationToken))
                 return ["Tenhle hráč už neexistuje."];
 
             db.PointEntries.Add(new PointEntry
@@ -170,7 +175,7 @@ public sealed class Scoreboard(IDbContextFactory<AppDbContext> dbFactory, TimePr
             .AsNoTracking()
             .Where(e => e.PlayerId == playerId && !e.Seen)
             .OrderBy(e => e.Id)
-            .Select(e => new PointEntryView(e.Id, e.PlayerId, e.Player!.UserName!, e.Points, e.Comment, e.CreatedAtUtc))
+            .Select(e => new PointEntryView(e.Id, e.PlayerId, e.Player!.Name, e.Points, e.Comment, e.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 

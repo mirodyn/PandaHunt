@@ -108,7 +108,7 @@ public sealed class TaskStars(IDbContextFactory<AppDbContext> dbFactory, TimePro
         var holders = await db.TaskStars
             .AsNoTracking()
             .Where(s => s.TaskId == taskId)
-            .Select(s => new StarHolder(s.Color, s.PlayerId, s.Player!.UserName!, s.SinceUtc))
+            .Select(s => new StarHolder(s.Color, s.PlayerId, s.Player!.Name, s.SinceUtc))
             .ToListAsync(cancellationToken);
         return holders.OrderByDescending(h => StarColors.Points(h.Color)).ToList();
     }
@@ -133,8 +133,8 @@ public sealed class TaskStars(IDbContextFactory<AppDbContext> dbFactory, TimePro
             if (!await db.HuntTasks.AnyAsync(t => t.Id == taskId, cancellationToken))
                 return ["Tenhle úkol už neexistuje."];
 
-            var adminIds = Scoreboard.AdminIds(db);
-            var players = await db.Users.CountAsync(u => playerIds.Contains(u.Id) && !adminIds.Contains(u.Id), cancellationToken);
+            var adminIds = Scoreboard.AdminPlayerIds(db);
+            var players = await db.Players.CountAsync(p => playerIds.Contains(p.Id) && !adminIds.Contains(p.Id), cancellationToken);
             if (players != playerIds.Count)
                 return ["Hvězdy můžou dostat jen hráči – někdo z vybraných už neexistuje, nebo je admin."];
 

@@ -110,3 +110,9 @@
         align-items: stretch;
     }
 }
+
+    .ph-msg .ph-msg-team {
+        color: #555;
+        font-size: 0.8rem;
+        font-style: italic;
+    }

@@ -1,0 +1,102 @@
+@* Joins the selected logins into one team: all of them play as one player from now on. *@
+@inject Teams Teams
+@inject Scoreboard Scoreboard
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="pt-2">
+            <MudText>
+                Vybraní hráči (@string.Join(", ", Users.Select(u => u.UserName))) budou od teď hrát jako jeden.
+                Zůstane hráč, kterého vybereš níž – jeho body, hvězdy a splněné úkoly. Ostatní hráči se
+                <strong>smažou i s body, hvězdami a splněnými úkoly</strong>. Nejde to vrátit.
+            </MudText>
+
+            @if (standings is null)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else
+            {
+                <MudRadioGroup T="string" @bind-Value="keepPlayerId" @bind-Value:after="SuggestName">
+                    @foreach (var player in Players)
+                    {
+                        <MudRadio T="string" Value="@player.Id" Color="Color.Primary">@player.Label</MudRadio>
+                    }
+                </MudRadioGroup>
+            }
+
+            <MudTextField T="string" @bind-Value="teamName" Label="Název týmu" Variant="Variant.Outlined"
+                          MaxLength="Player.MaxNameLength" HelperText="Takhle se bude tým jmenovat v žebříčku a u vzkazů." />
+
+            @if (errors.Count > 0)
+            {
+                <ul class="ph-form-errors" role="alert">
+                    @foreach (var error in errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="saving">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="@(saving || keepPlayerId is null)">Spojit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private sealed record Option(string Id, string Label);
+
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<UserRow> Users { get; set; } = [];
+
+    private IReadOnlyList<Standing>? standings;
+    private string? keepPlayerId;
+    private string teamName = "";
+    private IReadOnlyList<string> errors = [];
+    private bool saving;
+
+    // One option per distinct player among the selected logins (two logins may already share one).
+    private IEnumerable<Option> Players =>
+        Users.Select(u => u.PlayerId).Distinct().Select(id =>
+        {
+            var standing = standings!.FirstOrDefault(s => s.PlayerId == id);
+            var name = standing?.PlayerName ?? Users.First(u => u.PlayerId == id).UserName;
+            var detail = standing is null ? "" : $" – {CzechText.Points(standing.Total)}";
+            var team = standing?.IsTeam == true ? " (tým)" : "";
+            return new Option(id, $"{name}{team}{detail}");
+        });
+
+    protected override async Task OnInitializedAsync()
+    {
+        standings = await Scoreboard.GetStandingsAsync();
+        keepPlayerId = Users.Select(u => u.PlayerId).Distinct().OrderByDescending(id => standings.FirstOrDefault(s => s.PlayerId == id)?.Total ?? 0).FirstOrDefault();
+        SuggestName();
+    }
+
+    private void SuggestName()
+    {
+        // An existing team keeps its name unless the admin changes it.
+        if (Users.FirstOrDefault(u => u.PlayerId == keepPlayerId)?.TeamName is { } existing)
+            teamName = existing;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            errors = await Teams.MergeAsync(Users.Select(u => u.Id).ToList(), keepPlayerId!, teamName);
+            if (errors.Count == 0)
+                Dialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

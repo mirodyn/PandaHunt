@@ -1,6 +1,7 @@
 @page "/q/{Token}"
 @using System.Security.Claims
 @inject FloorCodes Codes
+@inject Teams Teams
 @inject GameSchedule Schedule
 
 @*
@@ -135,7 +136,7 @@
         }
         else
         {
-            playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            playerId = await Teams.GetPlayerIdAsync(user);
             state = PageState.Claiming;
         }
     }

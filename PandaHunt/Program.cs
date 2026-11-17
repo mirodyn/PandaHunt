@@ -82,6 +82,7 @@ builder.Services.AddSingleton<GameSchedule>();
 builder.Services.AddSingleton<Phase0Gate>();
 builder.Services.AddSingleton<MessageBoard>();
 builder.Services.AddSingleton<Scoreboard>();
+builder.Services.AddSingleton<Teams>();
 builder.Services.AddSingleton<HuntTasks>();
 builder.Services.AddSingleton<TaskStars>();
 builder.Services.AddSingleton<RegistrationBonuses>();

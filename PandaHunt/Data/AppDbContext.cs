@@ -7,6 +7,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 {
     public DbSet<Message> Messages => Set<Message>();
 
+    public DbSet<Player> Players => Set<Player>();
+
     public DbSet<GameSettings> GameSettings => Set<GameSettings>();
 
     public DbSet<PointEntry> PointEntries => Set<PointEntry>();
@@ -35,6 +37,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             settings.Property(s => s.Phase0Code).HasMaxLength(Data.GameSettings.MaxCodeLength);
             settings.Property(s => s.HuntIntro).HasMaxLength(Data.GameSettings.MaxHuntIntroLength);
             settings.Property(s => s.QrBaseUrl).HasMaxLength(Data.GameSettings.MaxQrBaseUrlLength);
+        });
+
+        builder.Entity<Player>(player =>
+        {
+            player.Property(p => p.Name).HasMaxLength(Player.MaxNameLength);
+        });
+
+        // A login can't be left without a player; a player's data goes with it when the player is deleted (cascade below).
+        builder.Entity<ApplicationUser>(user =>
+        {
+            user.HasOne(u => u.Player)
+                .WithMany(p => p.Members)
+                .HasForeignKey(u => u.PlayerId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<Message>(message =>

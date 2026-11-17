@@ -13,6 +13,10 @@
         </div>
     </TitleContent>
     <DialogContent>
+        @if (Player.IsTeam)
+        {
+            <p class="ph-player-members">Tým: @string.Join(", ", Player.Members!)</p>
+        }
         <div class="ph-player-summary">
             <PointsBadge Value="Player.Total" Class="ph-display ph-player-total" />
             <StarTally Counts="Player.Stars" Class="ph-player-stars" />

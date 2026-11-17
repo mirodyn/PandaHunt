@@ -96,11 +96,14 @@
         if (!Schedule.IsRegistrationOpen || !Gate.HasPassed(HttpContext))
             return;
 
+        var playerId = Guid.NewGuid().ToString(); // every login starts as its own player
         var user = new ApplicationUser
         {
             UserName = Input.UserName.Trim(),
             Email = Input.Email.Trim(),
             RegisteredAtUtc = Time.GetUtcNow().UtcDateTime,
+            Player = new Player { Id = playerId, Name = Input.UserName.Trim() },
+            PlayerId = playerId,
         };
 
         var result = await UserManager.CreateAsync(user, Input.Password);

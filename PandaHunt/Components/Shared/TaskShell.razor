@@ -6,6 +6,7 @@
 *@
 @using System.Security.Claims
 @inject HuntTasks Tasks
+@inject Teams Teams
 @inject GameSchedule Schedule
 @inject NavigationManager Navigation
 
@@ -29,6 +30,16 @@ else
             <p class="ph-banner">@note</p>
         }
         @ChildContent?.Invoke(taskContext)
+        @* The same rules text as on /pravidla, folded away. *@
+        @if (TaskRules.HasRules(HuntTask?.Type))
+        {
+            var type = TaskTypes.Get(HuntTask!.Type);
+            <MudExpansionPanels Class="mt-6" Elevation="0">
+                <MudExpansionPanel Text="@($"Pravidla: {type.Label}")" Icon="@type.Icon">
+                    <TaskRules TypeKey="@HuntTask.Type" />
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
     </PageShell>
 }
 
@@ -67,7 +78,7 @@ else
     {
         var user = (await AuthenticationState).User;
         isAdmin = user.IsInRole(AppRoles.Admin);
-        var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var playerId = await Teams.GetPlayerIdAsync(user) ?? "";
 
         var relative = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0];
         var huntTask = await Tasks.FindByLinkAsync("/" + Uri.UnescapeDataString(relative));

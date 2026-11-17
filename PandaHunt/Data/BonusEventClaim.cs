@@ -12,7 +12,7 @@ public class BonusEventClaim
 
     public required string PlayerId { get; set; }
 
-    public ApplicationUser? Player { get; set; }
+    public Player? Player { get; set; }
 
     public DateTime ClaimedAtUtc { get; set; }
 

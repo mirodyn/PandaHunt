@@ -89,7 +89,7 @@ public sealed class BonusEvents(IDbContextFactory<AppDbContext> dbFactory, TimeP
         return await db.BonusEventClaims
             .AsNoTracking()
             .Where(c => c.EventId == eventId && c.PlayerId == playerId)
-            .Select(c => new BonusClaimView(c.PlayerId, c.Player!.UserName!, c.ClaimedAtUtc, c.DistanceMeters, c.AccuracyMeters, c.Points))
+            .Select(c => new BonusClaimView(c.PlayerId, c.Player!.Name, c.ClaimedAtUtc, c.DistanceMeters, c.AccuracyMeters, c.Points))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -101,7 +101,7 @@ public sealed class BonusEvents(IDbContextFactory<AppDbContext> dbFactory, TimeP
             .AsNoTracking()
             .Where(c => c.EventId == eventId)
             .OrderBy(c => c.ClaimedAtUtc)
-            .Select(c => new BonusClaimView(c.PlayerId, c.Player!.UserName!, c.ClaimedAtUtc, c.DistanceMeters, c.AccuracyMeters, c.Points))
+            .Select(c => new BonusClaimView(c.PlayerId, c.Player!.Name, c.ClaimedAtUtc, c.DistanceMeters, c.AccuracyMeters, c.Points))
             .ToListAsync(cancellationToken);
     }
 

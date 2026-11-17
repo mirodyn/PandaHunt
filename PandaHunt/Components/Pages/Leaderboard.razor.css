@@ -215,3 +215,16 @@
         font-size: 1.05rem;
     }
 }
+
+/* Team rows: a small "team" label and the member nicknames under the name. */
+.ph-rank-team {
+    display: block;
+    margin-top: 0.1rem;
+    color: #555;
+    font-size: 0.75rem;
+    line-height: 1.25;
+}
+
+.ph-ranking tbody tr.ph-rank-first .ph-rank-team {
+    color: #cfcfcf;
+}

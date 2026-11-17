@@ -1,0 +1,37 @@
+@* Image slot on the rules page. No Src yet = dashed placeholder box showing the Hint (what to put there). *@
+
+<figure class="ph-rule-img @(Src is null ? "ph-rule-img-empty" : null)" style="aspect-ratio: @Ratio">
+    @if (Src is null)
+    {
+        <MudIcon Icon="@Icons.Material.Outlined.Image" />
+        <figcaption>@Hint</figcaption>
+    }
+    else
+    {
+        <img src="@Src" alt="@(Alt ?? Hint)" loading="lazy" />
+        @if (Caption is not null)
+        {
+            <figcaption>@Caption</figcaption>
+        }
+    }
+</figure>
+
+@code {
+    /// <summary>Path under wwwroot, e.g. "img/rules/sifra-1.png". Null = placeholder.</summary>
+    [Parameter]
+    public string? Src { get; set; }
+
+    /// <summary>Placeholder note: what image belongs here.</summary>
+    [Parameter]
+    public string? Hint { get; set; }
+
+    [Parameter]
+    public string? Alt { get; set; }
+
+    [Parameter]
+    public string? Caption { get; set; }
+
+    /// <summary>CSS aspect-ratio, e.g. "16 / 9".</summary>
+    [Parameter]
+    public string Ratio { get; set; } = "16 / 9";
+}

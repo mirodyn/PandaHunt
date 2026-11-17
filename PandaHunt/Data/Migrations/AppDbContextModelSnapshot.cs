@@ -187,6 +187,10 @@ namespace PandaHunt.Data.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("PlayerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("RegisteredAtUtc")
                         .HasColumnType("TEXT");
 
@@ -208,6 +212,8 @@ namespace PandaHunt.Data.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("PlayerId");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -437,6 +443,24 @@ namespace PandaHunt.Data.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.Player", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsTeam")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Players");
+                });
+
             modelBuilder.Entity("PandaHunt.Data.PointEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -562,6 +586,17 @@ namespace PandaHunt.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.ApplicationUser", b =>
+                {
+                    b.HasOne("PandaHunt.Data.Player", "Player")
+                        .WithMany("Members")
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("PandaHunt.Data.BonusEventClaim", b =>
                 {
                     b.HasOne("PandaHunt.Data.BonusEvent", "Event")
@@ -570,7 +605,7 @@ namespace PandaHunt.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                    b.HasOne("PandaHunt.Data.Player", "Player")
                         .WithMany()
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -589,7 +624,7 @@ namespace PandaHunt.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                    b.HasOne("PandaHunt.Data.Player", "Player")
                         .WithMany()
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -613,7 +648,7 @@ namespace PandaHunt.Data.Migrations
 
             modelBuilder.Entity("PandaHunt.Data.PointEntry", b =>
                 {
-                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                    b.HasOne("PandaHunt.Data.Player", "Player")
                         .WithMany()
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -624,7 +659,7 @@ namespace PandaHunt.Data.Migrations
 
             modelBuilder.Entity("PandaHunt.Data.TaskCompletion", b =>
                 {
-                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                    b.HasOne("PandaHunt.Data.Player", "Player")
                         .WithMany()
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -643,7 +678,7 @@ namespace PandaHunt.Data.Migrations
 
             modelBuilder.Entity("PandaHunt.Data.TaskStar", b =>
                 {
-                    b.HasOne("PandaHunt.Data.ApplicationUser", "Player")
+                    b.HasOne("PandaHunt.Data.Player", "Player")
                         .WithMany()
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -658,6 +693,11 @@ namespace PandaHunt.Data.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.Player", b =>
+                {
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

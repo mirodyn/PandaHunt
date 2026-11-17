@@ -13,7 +13,7 @@ public class PointEntry
 
     public required string PlayerId { get; set; }
 
-    public ApplicationUser? Player { get; set; }
+    public Player? Player { get; set; }
 
     public int Points { get; set; }
 

@@ -6,6 +6,7 @@
 @implements IDisposable
 @using System.Security.Claims
 @inject Scoreboard Scoreboard
+@inject Teams Teams
 @inject IDialogService Dialogs
 
 @code {
@@ -20,7 +21,7 @@
         if (!firstRender || AuthenticationState is null)
             return;
 
-        playerId = (await AuthenticationState).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        playerId = await Teams.GetPlayerIdAsync((await AuthenticationState).User);
         if (playerId is null)
             return;
 

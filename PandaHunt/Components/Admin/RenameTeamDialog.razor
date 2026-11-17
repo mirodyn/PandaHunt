@@ -1,0 +1,45 @@
+@inject Teams Teams
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="pt-2">
+            <MudTextField T="string" @bind-Value="teamName" Label="Název týmu" Variant="Variant.Outlined" MaxLength="Player.MaxNameLength" />
+            @if (errors.Count > 0)
+            {
+                <ul class="ph-form-errors" role="alert">
+                    @foreach (var error in errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Zrušit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Uložit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string PlayerId { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string TeamName { get; set; } = "";
+
+    private string teamName = "";
+    private IReadOnlyList<string> errors = [];
+
+    protected override void OnInitialized() => teamName = TeamName;
+
+    private async Task SaveAsync()
+    {
+        errors = await Teams.RenameTeamAsync(PlayerId, teamName);
+        if (errors.Count == 0)
+            Dialog.Close(DialogResult.Ok(true));
+    }
+}

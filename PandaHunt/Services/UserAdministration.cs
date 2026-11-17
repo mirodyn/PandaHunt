@@ -12,7 +12,9 @@ public sealed record UserRow(
     DateTime RegisteredAtUtc,
     bool IsAdmin,
     bool IsConfiguredAdmin,
-    int MessageCount);
+    int MessageCount,
+    string PlayerId,
+    string? TeamName);
 
 public sealed record UserEdit(string Id, string UserName, string Email, string? NewPassword, bool IsAdmin);
 
@@ -20,7 +22,7 @@ public sealed record UserEdit(string Id, string UserName, string Email, string? 
 /// Player management for the admin page. Each call uses its own scope, so a long-lived admin page
 /// never works with stale Identity/EF state. Methods return Czech error messages; empty means success.
 /// </summary>
-public sealed class UserAdministration(IServiceScopeFactory scopes, AdminBootstrap bootstrap, MessageBoard board, Scoreboard scoreboard)
+public sealed class UserAdministration(IServiceScopeFactory scopes, AdminBootstrap bootstrap, MessageBoard board, Scoreboard scoreboard, Teams teams)
 {
     public async Task<IReadOnlyList<UserRow>> ListAsync()
     {
@@ -42,12 +44,14 @@ public sealed class UserAdministration(IServiceScopeFactory scopes, AdminBootstr
                 u.RegisteredAtUtc,
                 IsAdmin = db.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == adminRoleId),
                 MessageCount = db.Messages.Count(m => m.AuthorId == u.Id),
+                u.PlayerId,
+                TeamName = u.Player!.IsTeam ? u.Player.Name : null,
             })
             .ToListAsync();
 
         return users
             .Select(u => new UserRow(u.Id, u.UserName ?? "", u.Email, u.RegisteredAtUtc, u.IsAdmin,
-                bootstrap.IsConfiguredAdmin(u.Email), u.MessageCount))
+                bootstrap.IsConfiguredAdmin(u.Email), u.MessageCount, u.PlayerId, u.TeamName))
             .ToList();
     }
 
@@ -75,12 +79,21 @@ public sealed class UserAdministration(IServiceScopeFactory scopes, AdminBootstr
             else if (bootstrap.IsConfiguredAdmin(user.Email))
                 errors.Add("Tenhle hráč je admin z konfigurace (Admin:Emails), tady mu admina odebrat nejde.");
         }
+        if (edit.IsAdmin && !await users.IsInRoleAsync(user, AppRoles.Admin)
+            && await scope.ServiceProvider.GetRequiredService<AppDbContext>().Players.AnyAsync(p => p.Id == user.PlayerId && p.IsTeam))
+            errors.Add("Člen týmu admin být nemůže. Nejdřív ho z týmu vyndej.");
         if (errors.Count > 0)
             return errors;
 
         var renamed = user.UserName != userName;
         if (renamed)
+        {
             Collect(errors, await users.SetUserNameAsync(user, userName));
+            if (errors.Count == 0) // a single login's player is named after it; a team keeps its own name
+                await scope.ServiceProvider.GetRequiredService<AppDbContext>().Players
+                    .Where(p => p.Id == user.PlayerId && !p.IsTeam)
+                    .ExecuteUpdateAsync(set => set.SetProperty(p => p.Name, userName));
+        }
         if (errors.Count == 0 && !string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
             Collect(errors, await users.SetEmailAsync(user, email));
         if (errors.Count == 0 && !string.IsNullOrEmpty(edit.NewPassword))
@@ -124,7 +137,10 @@ public sealed class UserAdministration(IServiceScopeFactory scopes, AdminBootstr
             return ["Tenhle hráč je admin z konfigurace (Admin:Emails), smazat ho tady nejde."];
 
         var errors = new List<string>();
-        Collect(errors, await users.DeleteAsync(user)); // their messages and points are deleted too (cascade)
+        var playerId = user.PlayerId;
+        Collect(errors, await users.DeleteAsync(user)); // their messages are deleted too (cascade)
+        if (errors.Count == 0)
+            await teams.AfterMemberRemovedAsync(playerId); // the player's points go too, unless teammates remain
         board.NotifyChanged();
         scoreboard.NotifyChanged();
         return errors;

@@ -3,7 +3,7 @@ using PandaHunt.Data;
 
 namespace PandaHunt.Services;
 
-public sealed record MessageView(int Id, string Author, string Text, DateTime CreatedAtUtc);
+public sealed record MessageView(int Id, string Author, string Text, DateTime CreatedAtUtc, string? Team = null);
 
 /// <summary>
 /// Reads and writes message-board posts and notifies every connected circuit when a new one arrives.
@@ -23,7 +23,7 @@ public sealed class MessageBoard(IDbContextFactory<AppDbContext> dbFactory, Time
             .AsNoTracking()
             .OrderByDescending(m => m.Id)
             .Take(ShownCount)
-            .Select(m => new MessageView(m.Id, m.Author!.UserName!, m.Text, m.CreatedAtUtc))
+            .Select(m => new MessageView(m.Id, m.Author!.UserName!, m.Text, m.CreatedAtUtc, m.Author.Player!.IsTeam ? m.Author.Player.Name : null))
             .ToListAsync(cancellationToken);
     }
 

@@ -1,0 +1,49 @@
+@*
+    The rules text of ONE task type. This is the single source: /pravidla shows it in the type's section
+    and every task page of that type can show the very same thing (TaskShell does it automatically).
+    Edit the text of a type in its own block below. Keys are the TaskTypes keys, so when the three real
+    types are in TaskTypes.cs, rename the keys here too. HasRules says which types have rules to show.
+*@
+
+@switch (TypeKey)
+{
+    case "sifra":
+        <RuleImage Hint="Hlavní obrázek typu 1" />
+        <p>…</p>
+        <div class="ph-rule-images">
+            <RuleImage Hint="Příklad 1" Ratio="4 / 3" />
+            <RuleImage Hint="Příklad 2" Ratio="4 / 3" />
+            <RuleImage Hint="Jak se dávají hvězdy" Ratio="4 / 3" />
+        </div>
+        break;
+
+    case "teren":
+        <RuleImage Hint="Hlavní obrázek typu 2" />
+        <p>…</p>
+        <div class="ph-rule-images">
+            <RuleImage Hint="Příklad 1" Ratio="4 / 3" />
+            <RuleImage Hint="Příklad 2" Ratio="4 / 3" />
+            <RuleImage Hint="Jak se dávají hvězdy" Ratio="4 / 3" />
+        </div>
+        break;
+
+    case "kviz":
+        <RuleImage Hint="Hlavní obrázek typu 3" />
+        <p>…</p>
+        <div class="ph-rule-images">
+            <RuleImage Hint="Příklad 1" Ratio="4 / 3" />
+            <RuleImage Hint="Příklad 2" Ratio="4 / 3" />
+            <RuleImage Hint="Jak se dávají hvězdy" Ratio="4 / 3" />
+        </div>
+        break;
+}
+
+@code {
+    /// <summary>The types that have rules (and so a section on /pravidla), in page order.</summary>
+    public static readonly IReadOnlyList<string> Types = ["sifra", "teren", "kviz"];
+
+    public static bool HasRules(string? key) => key is not null && Types.Contains(key);
+
+    [Parameter, EditorRequired]
+    public string? TypeKey { get; set; }
+}

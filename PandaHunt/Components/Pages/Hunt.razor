@@ -5,6 +5,7 @@
 @inject GameSchedule Schedule
 @inject GameSettingsStore Settings
 @inject HuntTasks Tasks
+@inject Teams Teams
 @inject Scoreboard Scoreboard
 @inject BonusEvents Events
 @inject TaskStars Stars
@@ -64,9 +65,7 @@ else
             </div>
 
             <nav class="ph-hunt-buttons" aria-label="Další stránky">
-                <MudButton Href="/zebricek" Variant="Variant.Outlined" Color="Color.Primary">Žebříček</MudButton>
-                @* TODO: Href="/pravidla" once the rules page exists. *@
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="true" title="Pravidla budou brzy">Pravidla</MudButton>
+                <MudButton Href="/pravidla" Variant="Variant.Outlined" Color="Color.Primary">Pravidla</MudButton>
             </nav>
 
             <div class="ph-hunt-main">
@@ -216,7 +215,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var user = (await AuthenticationState).User;
-        playerId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        playerId = await Teams.GetPlayerIdAsync(user) ?? "";
         playerName = user.Identity?.Name ?? "";
         isAdmin = user.IsInRole(AppRoles.Admin);
 

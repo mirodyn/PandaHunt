@@ -3,6 +3,7 @@
 @implements IAsyncDisposable
 @using System.Security.Claims
 @inject BonusEvents Events
+@inject Teams Teams
 @inject GameSchedule Schedule
 @inject IJSRuntime JS
 
@@ -184,7 +185,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var user = (await AuthenticationState).User;
-        playerId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        playerId = await Teams.GetPlayerIdAsync(user) ?? "";
         isAdmin = user.IsInRole(AppRoles.Admin);
 
         Events.Changed += OnEventsChanged;

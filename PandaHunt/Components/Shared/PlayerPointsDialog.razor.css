@@ -35,3 +35,9 @@
         font-size: 1.3rem;
         align-self: center;
     }
+
+.ph-player-members {
+    margin: 0 0 1rem;
+    color: #555;
+    font-size: 0.85rem;
+}

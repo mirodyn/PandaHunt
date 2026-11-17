@@ -3,6 +3,7 @@
 @implements IDisposable
 @using System.Security.Claims
 @inject Scoreboard Scoreboard
+@inject Teams Teams
 @inject GameSchedule Schedule
 @inject GameSettingsStore Settings
 @inject IDialogService Dialogs
@@ -56,6 +57,10 @@
                             {
                                 <span class="ph-pill ph-pill-small ph-rank-me">ty</span>
                             }
+                            @if (row.IsTeam)
+                            {
+                                <span class="ph-rank-team">tým · @string.Join(", ", row.Members!)</span>
+                            }
                         </td>
                         <td class="ph-display ph-rank-points"><PointsBadge Value="row.Points" /></td>
                         <td class="ph-rank-stars"><StarTally Counts="row.Stars" ShowZero="true" /></td>
@@ -83,7 +88,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        currentUserId = (await AuthenticationState).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        currentUserId = await Teams.GetPlayerIdAsync((await AuthenticationState).User);
         Scoreboard.Changed += OnScoreboardChanged;
         Settings.Changed += OnSettingsChanged;
         standings = await Scoreboard.GetStandingsAsync();

@@ -51,6 +51,10 @@
                 <article class="ph-msg" @key="message.Id">
                     <header>
                         <strong>@message.Author</strong>
+                        @if (message.Team is not null)
+                        {
+                            <span class="ph-msg-team">člen @message.Team</span>
+                        }
                         <time>@Schedule.Format(message.CreatedAtUtc)</time>
                     </header>
                     <p>@message.Text</p>

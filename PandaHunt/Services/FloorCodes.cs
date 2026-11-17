@@ -82,7 +82,7 @@ public sealed class FloorCodes(
         var claims = await db.FloorCodeClaims
             .AsNoTracking()
             .Where(c => c.CodeId == codeId)
-            .Select(c => new FloorClaimView(c.PlayerId, c.Player!.UserName!, c.ClaimedAtUtc, c.Points))
+            .Select(c => new FloorClaimView(c.PlayerId, c.Player!.Name, c.ClaimedAtUtc, c.Points))
             .ToListAsync(cancellationToken);
         return claims.OrderBy(c => c.ClaimedAtUtc).ToList();
     }
