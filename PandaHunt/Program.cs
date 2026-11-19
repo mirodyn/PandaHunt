@@ -8,6 +8,7 @@ using PandaHunt.Account;
 using PandaHunt.Components;
 using PandaHunt.Data;
 using PandaHunt.Services;
+using PandaHunt.Services.Notifications;
 
 var czech = new CultureInfo("cs-CZ");
 CultureInfo.DefaultThreadCurrentCulture = czech;
@@ -92,6 +93,18 @@ builder.Services.AddSingleton<BonusEvents>();
 builder.Services.AddSingleton<FloorCodes>();
 builder.Services.AddSingleton<AppReset>();
 
+// Notifications: e-mail, browser push (Web Push) and, later, SMS. Add a channel = one more INotificationChannel.
+builder.Services.AddSingleton<SecretProtector>();
+builder.Services.AddSingleton<NotificationSettingsStore>();
+builder.Services.AddSingleton<EmailSender>();
+builder.Services.AddSingleton<WebPushSender>();
+builder.Services.AddSingleton<INotificationChannel, EmailChannel>();
+builder.Services.AddSingleton<INotificationChannel, WebPushChannel>();
+builder.Services.AddSingleton<INotificationChannel, SmsChannel>();
+builder.Services.AddSingleton<Notifier>();
+builder.Services.AddSingleton<NotificationPreferences>();
+builder.Services.AddHostedService<NotificationScheduler>();
+
 var app = builder.Build();
 
 // A hard reset asked for on /admin: wipe the database and the login keys before anything opens them.
@@ -102,6 +115,7 @@ using (var scope = app.Services.CreateScope())
 {
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
     await app.Services.GetRequiredService<GameSettingsStore>().LoadAsync();
+    await app.Services.GetRequiredService<NotificationSettingsStore>().LoadAsync();
     await app.Services.GetRequiredService<AdminBootstrap>().InitializeAsync(scope.ServiceProvider);
 }
 

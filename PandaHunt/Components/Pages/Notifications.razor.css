@@ -1,0 +1,103 @@
+.ph-notif-card {
+    margin: 1rem 0;
+    padding: 0.9rem 1rem 1rem;
+    border: 3px solid #000;
+}
+
+.ph-notif-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+}
+
+    .ph-notif-head h2 {
+        font-size: 1.8rem;
+        line-height: 1;
+        margin: 0;
+    }
+
+::deep .ph-notif-switch {
+    margin-left: auto;
+}
+
+.ph-notif-card p {
+    margin: 0.4rem 0 0.7rem;
+}
+
+.ph-notif-soon {
+    border-style: dashed;
+    color: #777;
+}
+
+.ph-notif-warning {
+    padding: 0.6rem 0.9rem;
+    background: #ff9100;
+    border: 3px solid #000;
+    font-weight: 500;
+}
+
+.ph-notif-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* A plain button on purpose: notifications.js handles the click (see data-push-enable). */
+.ph-notif-enable {
+    padding: 0.6rem 1.2rem;
+    border: 3px solid #000;
+    background: #000;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+
+    .ph-notif-enable:hover:not(:disabled),
+    .ph-notif-enable:focus-visible {
+        background: #fff;
+        color: #000;
+        outline: none;
+    }
+
+    .ph-notif-enable:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+
+.ph-notif-help {
+    margin-top: 0.9rem;
+}
+
+    .ph-notif-help summary {
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+.ph-notif-sub {
+    margin: 1rem 0 0.3rem;
+    font-size: 1rem;
+}
+
+.ph-notif-devices {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+    .ph-notif-devices li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+        border-top: 1px solid #d9d9d9;
+    }
+
+    .ph-notif-devices small {
+        display: block;
+        color: #666;
+    }

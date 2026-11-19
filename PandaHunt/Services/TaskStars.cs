@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PandaHunt.Data;
+using PandaHunt.Services.Notifications;
 
 namespace PandaHunt.Services;
 
@@ -62,6 +63,14 @@ public static class StarColors
         _ => $"{n} {CzechText.Plural(n, "bronzová hvězda", "bronzové hvězdy", "bronzových hvězd")}",
     };
 
+    /// <summary>"Zlatou hvězdu" (for "Zlatou hvězdu už nemáš").</summary>
+    public static string Accusative(StarColor color) => color switch
+    {
+        StarColor.Gold => "Zlatou hvězdu",
+        StarColor.Silver => "Stříbrnou hvězdu",
+        _ => "Bronzovou hvězdu",
+    };
+
     public static string CssClass(StarColor color) => color switch
     {
         StarColor.Gold => "ph-star-gold",
@@ -76,7 +85,7 @@ public static class StarColors
 /// and moves when someone takes it over. For now the admin hands them out (Administrace → Úkoly); later
 /// the task pages will call <see cref="SetHoldersAsync"/> by their own rules.
 /// </summary>
-public sealed class TaskStars(IDbContextFactory<AppDbContext> dbFactory, TimeProvider time, Scoreboard scoreboard)
+public sealed class TaskStars(IDbContextFactory<AppDbContext> dbFactory, TimeProvider time, Scoreboard scoreboard, Notifier notifier)
 {
     // One change at a time, so two players finishing a task together can't hand out the same star twice.
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -126,12 +135,16 @@ public sealed class TaskStars(IDbContextFactory<AppDbContext> dbFactory, TimePro
             return ["Jeden lovec může mít z jednoho úkolu jen jednu hvězdu."];
 
         var changed = false;
+        var lost = new List<(string PlayerId, StarColor Color)>();
+        var taskName = "";
         await gate.WaitAsync(cancellationToken);
         try
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-            if (!await db.HuntTasks.AnyAsync(t => t.Id == taskId, cancellationToken))
+            var task = await db.HuntTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, cancellationToken);
+            if (task is null)
                 return ["Tenhle úkol už neexistuje."];
+            taskName = task.Name;
 
             var adminIds = Scoreboard.AdminPlayerIds(db);
             var players = await db.Players.CountAsync(p => playerIds.Contains(p.Id) && !adminIds.Contains(p.Id), cancellationToken);
@@ -148,6 +161,8 @@ public sealed class TaskStars(IDbContextFactory<AppDbContext> dbFactory, TimePro
                     continue;
 
                 changed = true;
+                if (star is not null)
+                    lost.Add((star.PlayerId, color));
                 if (holder is null)
                 {
                     db.TaskStars.Remove(star!);
@@ -171,6 +186,16 @@ public sealed class TaskStars(IDbContextFactory<AppDbContext> dbFactory, TimePro
 
         if (changed)
             scoreboard.NotifyChanged(); // scores and leaderboards
+
+        // Tell the players who no longer hold any star of this task (moving between colours isn't a loss).
+        foreach (var group in lost.Where(l => !playerIds.Contains(l.PlayerId)).GroupBy(l => l.PlayerId))
+        {
+            var colors = group.Select(l => l.Color).OrderByDescending(StarColors.Points).ToList();
+            notifier.NotifyPlayersInBackground([group.Key], new NotificationMessage(
+                "Přišel jsi o hvězdu",
+                $"{StarColors.Accusative(colors[0])} z úkolu „{taskName}“ už nemáš. Zkus ji získat zpátky!",
+                "/lov", $"star-lost:{taskId}"));
+        }
         return [];
     }
 }

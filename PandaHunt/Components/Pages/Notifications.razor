@@ -1,0 +1,313 @@
+@page "/oznameni"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@using System.Security.Claims
+@inject NotificationPreferences Preferences
+@inject IJSRuntime JS
+@inject GameSchedule Schedule
+@inject ISnackbar Snackbar
+
+<PageTitle>Oznámení · PandaHunt IV</PageTitle>
+
+<PageShell Title="Oznámení" CardClass="ph-card-medium" BackHref="/ucet" BackText="Zpět na můj účet">
+    <p>
+        Dají ti vědět, když se otevře nový úkol, začne bonusová akce nebo o něco přijdeš (třeba o hvězdu).
+        Zapni si jeden způsob, nebo klidně všechny.
+    </p>
+
+    @if (state is null)
+    {
+        <p>Načítám…</p>
+    }
+    else
+    {
+        @if (!state.HasAnyChannel)
+        {
+            <p class="ph-notif-warning">Zatím nemáš zapnuté nic. Zapni aspoň jeden způsob níž.</p>
+        }
+
+        @* ---------- E-mail ---------- *@
+        <section class="ph-notif-card">
+            <div class="ph-notif-head">
+                <MudIcon Icon="@Icons.Material.Filled.Email" />
+                <h2 class="ph-display">E-mail</h2>
+                <MudSwitch T="bool" Value="state.NotifyByEmail" ValueChanged="SetEmailAsync" Color="Color.Primary"
+                           Disabled="@(busy || (!emailAvailable && !state.NotifyByEmail))" aria-label="E-mailová oznámení" Class="ph-notif-switch" />
+            </div>
+            @if (!emailAvailable)
+            {
+                <p>E-maily zatím nejsou nastavené. Admin musí nejdřív doplnit odesílání.</p>
+            }
+            else if (state.NotifyByEmail)
+            {
+                <p>Oznámení ti chodí na <strong>@state.Email</strong>. Když ti nepřijdou, mrkni do spamu.</p>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="busy" OnClick="TestEmailAsync">Poslat zkušební e-mail</MudButton>
+            }
+            else
+            {
+                <p>Pošleme ti je na <strong>@state.Email</strong>. Po zapnutí ti hned přijde zkušební zpráva.</p>
+            }
+        </section>
+
+        @* ---------- Browser ---------- *@
+        <section class="ph-notif-card">
+            <div class="ph-notif-head">
+                <MudIcon Icon="@Icons.Material.Filled.Notifications" />
+                <h2 class="ph-display">V prohlížeči</h2>
+                @if (state.Devices.Count > 0)
+                {
+                    <span class="ph-pill on ph-pill-small">zapnuto</span>
+                }
+            </div>
+
+            @if (info is null)
+            {
+                <p>Zjišťuji, co tvůj prohlížeč umí…</p>
+            }
+            else if (!info.Secure)
+            {
+                <p>Oznámení v prohlížeči fungují jen přes zabezpečené spojení (https).</p>
+            }
+            else if (!pushAvailable)
+            {
+                <p>Oznámení v prohlížeči jsou zatím nedostupná, admin musí nejdřív dokončit nastavení.</p>
+            }
+            else if (!info.Supported)
+            {
+                @if (info.Platform == "ios")
+                {
+                    <p>Tohle je potřeba udělat na iPhonu jinak než jinde. Postup:</p>
+                    <PushTutorial Info="info" />
+                }
+                else
+                {
+                    <p>Tenhle prohlížeč oznámení neumí. Zkus aktuální Chrome, Edge, Firefox nebo Safari.</p>
+                }
+            }
+            else
+            {
+                @if (info.Permission == "denied")
+                {
+                    <p class="ph-notif-warning">Oznámení jsou v tomhle prohlížeči zablokovaná. Odblokuj je podle návodu níž a načti stránku znovu.</p>
+                    <PushTutorial Info="info" />
+                }
+                else if (thisDeviceOn)
+                {
+                    <p>Na tomhle zařízení (@info.Label) je zapnuto.</p>
+                    <div class="ph-notif-actions">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="busy" OnClick="TestPushAsync">Poslat zkušební oznámení</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Disabled="busy" OnClick="DisablePushAsync">Vypnout tady</MudButton>
+                    </div>
+                }
+                else
+                {
+                    <p>Zapni oznámení v tomhle prohlížeči (@info.Label). Prohlížeč se tě zeptá na povolení.</p>
+                    <button type="button" class="ph-notif-enable" data-push-enable disabled="@busy">Zapnout v tomto prohlížeči</button>
+                    <details class="ph-notif-help">
+                        <summary>Jak to nastavit a co dělat, když to nejde</summary>
+                        <PushTutorial Info="info" />
+                    </details>
+                }
+            }
+
+            @if (state.Devices.Count > 0)
+            {
+                <h3 class="ph-notif-sub">Zařízení s oznámením</h3>
+                <ul class="ph-notif-devices">
+                    @foreach (var device in state.Devices)
+                    {
+                        <li>
+                            <span>
+                                @device.Label
+                                @if (info?.Endpoint == device.Endpoint)
+                                {
+                                    <span class="ph-pill ph-pill-small">toto</span>
+                                }
+                                <small>od @Schedule.FormatDate(device.CreatedAtUtc)</small>
+                            </span>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Disabled="busy"
+                                           aria-label="@($"Odebrat {device.Label}")" title="Odebrat" OnClick="() => RemoveDeviceAsync(device)" />
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @* ---------- SMS ---------- *@
+        <section class="ph-notif-card ph-notif-soon">
+            <div class="ph-notif-head">
+                <MudIcon Icon="@Icons.Material.Filled.Sms" />
+                <h2 class="ph-display">SMS</h2>
+                <span class="ph-pill ph-pill-small">připravujeme</span>
+                <MudSwitch T="bool" Value="false" Disabled="true" Color="Color.Primary" aria-label="SMS oznámení" Class="ph-notif-switch" />
+            </div>
+            <p>Oznámení esemeskou zatím nejsou k dispozici.</p>
+        </section>
+    }
+</PageShell>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private string userId = "";
+    private NotificationState? state;
+    private PushInfo? info;
+    private bool emailAvailable;
+    private bool pushAvailable;
+    private bool busy;
+    private DotNetObjectReference<Notifications>? self;
+
+    // This browser is registered on the server (not just subscribed in the browser).
+    private bool thisDeviceOn => info?.Endpoint is { } endpoint && state is not null && state.Devices.Any(d => d.Endpoint == endpoint);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Preferences.Changed += OnChanged;
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        self = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("pandaNotifications.init", self, Preferences.PushPublicKey);
+        await RefreshInfoAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        state = await Preferences.GetAsync(userId);
+        emailAvailable = Preferences.EmailAvailable;
+        pushAvailable = Preferences.PushPublicKey is not null;
+    }
+
+    private async Task RefreshInfoAsync()
+    {
+        info = await JS.InvokeAsync<PushInfo>("pandaNotifications.getInfo");
+        StateHasChanged();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away.
+        }
+    });
+
+    private async Task SetEmailAsync(bool on)
+    {
+        busy = true;
+        try
+        {
+            var errors = await Preferences.SetEmailAsync(userId, on);
+            if (errors.Count > 0)
+                Snackbar.Add(string.Join(" ", errors), Severity.Error);
+            else
+                Snackbar.Add(on ? "E-mailová oznámení zapnuta. Zkušební zpráva je na cestě." : "E-mailová oznámení vypnuta.", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private Task TestEmailAsync() => TestAsync("e-mail", "Zkušební e-mail je na cestě.");
+
+    private Task TestPushAsync() => TestAsync("prohlížeč", "Zkušební oznámení je na cestě.");
+
+    private async Task TestAsync(string channel, string okText)
+    {
+        busy = true;
+        try
+        {
+            var result = await Preferences.SendTestAsync(userId, channel);
+            Snackbar.Add(result.Sent > 0 ? okText : "Nepodařilo se ho odeslat. Zkus to za chvíli znovu.", result.Sent > 0 ? Severity.Success : Severity.Error);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DisablePushAsync()
+    {
+        busy = true;
+        try
+        {
+            var endpoint = await JS.InvokeAsync<string?>("pandaNotifications.disable");
+            if (endpoint is not null)
+                await Preferences.RemoveDeviceAsync(userId, endpoint: endpoint);
+            await RefreshInfoAsync();
+            Snackbar.Add("Oznámení v tomhle prohlížeči vypnuta.", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task RemoveDeviceAsync(DeviceView device)
+    {
+        busy = true;
+        try
+        {
+            if (info?.Endpoint == device.Endpoint)
+                await JS.InvokeAsync<string?>("pandaNotifications.disable"); // this very browser: unsubscribe it there too
+            await Preferences.RemoveDeviceAsync(userId, deviceId: device.Id);
+            await RefreshInfoAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>Called by notifications.js after the player allowed notifications in this browser.</summary>
+    [JSInvokable]
+    public async Task OnPushSubscribed(DeviceRegistration registration)
+    {
+        var errors = await Preferences.AddDeviceAsync(userId, registration);
+        if (errors.Count > 0)
+            Snackbar.Add(string.Join(" ", errors), Severity.Error);
+        else
+            Snackbar.Add("Oznámení v prohlížeči zapnuta. Můžeš si poslat zkušební.", Severity.Success);
+        await RefreshInfoAsync();
+    }
+
+    [JSInvokable]
+    public async Task OnPushFailed(string reason)
+    {
+        Snackbar.Add(reason switch
+        {
+            "denied" => "Oznámení jsi nepovolil. Můžeš to zkusit znovu, případně je odblokuj podle návodu.",
+            "unsupported" => "Tenhle prohlížeč oznámení neumí.",
+            _ => "Zapnutí oznámení se nepovedlo. Zkus to znovu.",
+        }, Severity.Error);
+        await RefreshInfoAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Preferences.Changed -= OnChanged;
+        try
+        {
+            await JS.InvokeVoidAsync("pandaNotifications.dispose");
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // Circuit already gone.
+        }
+        self?.Dispose();
+    }
+}

@@ -35,7 +35,7 @@
 
     <p class="ph-status">
         @HuntStatus
-        <AuthorizeView> · Lovec <strong>@context.User.Identity?.Name</strong></AuthorizeView>
+        <AuthorizeView> · Lovec <a href="/ucet" title="Můj účet"><strong>@context.User.Identity?.Name</strong></a></AuthorizeView>
         <AuthorizeView Roles="@AppRoles.Admin"> · <a href="/admin">Administrace</a></AuthorizeView>
     </p>
 

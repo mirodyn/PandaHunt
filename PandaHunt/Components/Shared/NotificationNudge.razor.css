@@ -1,0 +1,68 @@
+.ph-nudge {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.7rem 1rem;
+    background: #ff9100;
+    color: #000;
+    border-bottom: 3px solid #000;
+}
+
+::deep .ph-nudge-icon {
+    flex: none;
+    font-size: 2rem;
+    width: 2rem;
+    height: 2rem;
+}
+
+.ph-nudge-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+    .ph-nudge-text strong {
+        font-size: 1.5rem;
+        line-height: 1.1;
+        font-weight: 400;
+    }
+
+.ph-nudge-button {
+    flex: none;
+    padding: 0.5rem 1rem;
+    border: 3px solid #000;
+    background: #000;
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+    .ph-nudge-button:hover,
+    .ph-nudge-button:focus-visible {
+        background: #fff;
+        color: #000;
+        outline: none;
+    }
+
+@media (max-width: 600px) {
+    .ph-nudge {
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+    }
+
+    .ph-nudge-button {
+        flex: 1 0 100%;
+        text-align: center;
+    }
+}

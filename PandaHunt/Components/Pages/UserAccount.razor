@@ -1,0 +1,114 @@
+@page "/ucet"
+@attribute [Authorize]
+@implements IDisposable
+@using System.Security.Claims
+@inject NotificationPreferences Preferences
+@inject GameSchedule Schedule
+@inject NavigationManager Navigation
+
+<PageTitle>Můj účet · PandaHunt IV</PageTitle>
+
+<PageShell Title="Můj účet" CardClass="ph-card-medium">
+    @if (passwordChanged)
+    {
+        <p class="ph-acc-ok" role="status">Heslo je změněné.</p>
+    }
+
+    <section class="ph-acc-card">
+        <h2 class="ph-display">Údaje</h2>
+        <dl class="ph-acc-list">
+            <dt>Přezdívka</dt>
+            <dd>@userName</dd>
+            <dt>E-mail</dt>
+            <dd>@email</dd>
+            @if (registeredAt is { } registered)
+            {
+                <dt>Registrace</dt>
+                <dd>@Schedule.Format(registered)</dd>
+            }
+        </dl>
+        <p class="ph-acc-hint">Přezdívku nebo e-mail ti změní organizátor.</p>
+    </section>
+
+    <section class="ph-acc-card">
+        <h2 class="ph-display">Oznámení</h2>
+        @if (state is null)
+        {
+            <p>Načítám…</p>
+        }
+        else
+        {
+            <ul class="ph-acc-channels">
+                <li class="@(state.NotifyByEmail ? "on" : null)">E-mail: <strong>@(state.NotifyByEmail ? "zapnutý" : "vypnutý")</strong></li>
+                <li class="@(state.Devices.Count > 0 ? "on" : null)">
+                    V prohlížeči: <strong>@(state.Devices.Count > 0 ? $"zapnuto ({state.Devices.Count} {CzechText.Plural(state.Devices.Count, "zařízení", "zařízení", "zařízení")})" : "vypnuto")</strong>
+                </li>
+                <li>SMS: <strong>připravujeme</strong></li>
+            </ul>
+            @if (!state.HasAnyChannel)
+            {
+                <p class="ph-acc-warning">Nemáš zapnuté žádné oznámení, nic ti neuteče jen když budeš pořád hlídat web.</p>
+            }
+        }
+        <MudButton Href="/oznameni" Variant="Variant.Outlined" Color="Color.Primary">Nastavit oznámení</MudButton>
+    </section>
+
+    <section class="ph-acc-card">
+        <h2 class="ph-display">Heslo</h2>
+        <p>Heslo si můžeš kdykoli změnit. Zůstaneš přitom přihlášený.</p>
+        <MudButton Href="/ucet/heslo" Variant="Variant.Outlined" Color="Color.Primary">Změnit heslo</MudButton>
+    </section>
+
+    <section class="ph-acc-card">
+        <form action="@AccountEndpoints.LogoutPath" method="post">
+            <AntiforgeryToken />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Text" Color="Color.Primary">Odhlásit se</MudButton>
+        </form>
+    </section>
+</PageShell>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private string userId = "";
+    private string userName = "";
+    private string? email;
+    private DateTime? registeredAt;
+    private NotificationState? state;
+    private bool passwordChanged;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        userName = user.Identity?.Name ?? "";
+        email = user.FindFirstValue(ClaimTypes.Email);
+        passwordChanged = Navigation.Uri.Contains("heslo=zmeneno", StringComparison.Ordinal);
+
+        Preferences.Changed += OnChanged;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        state = await Preferences.GetAsync(userId);
+        email = state?.Email ?? email;
+        registeredAt = await Preferences.GetRegisteredAtAsync(userId);
+    }
+
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away.
+        }
+    });
+
+    public void Dispose() => Preferences.Changed -= OnChanged;
+}

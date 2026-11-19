@@ -1,0 +1,83 @@
+@*
+    A loud (orange) strip on top of every page for logged-in players who have no notification set up.
+    Lives in MainLayout; refreshes itself when the player sets something up (here or on another tab).
+*@
+@implements IDisposable
+@using System.Security.Claims
+@inject NotificationPreferences Preferences
+@inject NavigationManager Navigation
+
+@if (visible)
+{
+    <aside class="ph-nudge" role="alert">
+        <MudIcon Icon="@Icons.Material.Filled.NotificationsOff" Class="ph-nudge-icon" />
+        <div class="ph-nudge-text">
+            <strong class="ph-display">Nemáš nastavená žádná oznámení!</strong>
+            <span>Bez nich ti utečou nové úkoly, bonusové akce i hvězdy, o které můžeš přijít. Je to skoro nutnost.</span>
+        </div>
+        <a class="ph-nudge-button" href="/oznameni">Nastavit oznámení</a>
+    </aside>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private string? userId;
+    private bool missing;
+    private bool onSettingsPage;
+
+    // The organisers aren't playing, and the settings page itself explains everything.
+    private bool visible => missing && !onSettingsPage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null)
+            return;
+
+        var user = (await AuthenticationState).User;
+        if (user.Identity?.IsAuthenticated != true || user.IsInRole(AppRoles.Admin))
+            return;
+
+        userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+            return;
+
+        Preferences.Changed += OnChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+        onSettingsPage = IsSettingsPage();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() =>
+        missing = userId is not null && await Preferences.GetAsync(userId) is { HasAnyChannel: false };
+
+    private bool IsSettingsPage() =>
+        Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("oznameni", StringComparison.OrdinalIgnoreCase);
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+        _ = InvokeAsync(() =>
+        {
+            onSettingsPage = IsSettingsPage();
+            StateHasChanged();
+        });
+
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit went away.
+        }
+    });
+
+    public void Dispose()
+    {
+        Preferences.Changed -= OnChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

@@ -1,0 +1,9 @@
+.ph-tutorial {
+    margin: 0.5rem 0 0;
+    padding-left: 1.3rem;
+}
+
+    .ph-tutorial li {
+        margin-bottom: 0.45rem;
+        line-height: 1.4;
+    }

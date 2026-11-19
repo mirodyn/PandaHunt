@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />
+    <PackageReference Include="MailKit" Version="5.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

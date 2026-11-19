@@ -1,0 +1,52 @@
+@* Step-by-step help for allowing browser notifications, for the platform the player is on (detected in notifications.js). *@
+
+<ol class="ph-tutorial">
+    @switch (Info.Platform)
+    {
+        case "ios":
+            @if (Info.Standalone)
+            {
+                <li>Appku z plochy už používáš, to je správně.</li>
+                <li>Klepni na <strong>Zapnout v tomto prohlížeči</strong> a povol oznámení.</li>
+                <li>Kdyby se nic neukázalo: <strong>Nastavení → Oznámení → PandaHunt</strong> a tam je povol. Potřebuješ iOS 16.4 nebo novější.</li>
+            }
+            else
+            {
+                <li>Na iPhonu a iPadu fungují oznámení jen z <strong>aplikace na ploše</strong>, ne přímo z Safari. Nic se neinstaluje z App Storu, jen se přidá zástupce.</li>
+                <li>Otevři tuhle stránku v <strong>Safari</strong>.</li>
+                <li>Klepni na tlačítko <strong>Sdílet</strong> (čtvereček se šipkou nahoru; když ho nevidíš, klepni na „…“).</li>
+                <li>Sjeď v nabídce níž a zvol <strong>Přidat na plochu</strong>, nech zapnuté <strong>Otevřít jako webovou aplikaci</strong> a klepni na <strong>Přidat</strong>.</li>
+                <li>Zavři Safari a otevři <strong>PandaHunt z plochy</strong>. Je to oddělená aplikace, takže se v ní musíš <strong>znovu přihlásit</strong>.</li>
+                <li>Vrať se sem (<strong>Oznámení</strong>) a klepni na <strong>Zapnout v tomto prohlížeči</strong>. Potřebuješ iOS 16.4 nebo novější.</li>
+            }
+            break;
+
+        case "android":
+            <li>Klepni na <strong>Zapnout v tomto prohlížeči</strong> a v okně, které naskočí, zvol <strong>Povolit</strong>.</li>
+            <li>Omylem jsi zvolil „Blokovat“? Klepni na <strong>ikonu zámku</strong> (nebo ⋮ → Informace o webu) vedle adresy, otevři <strong>Oznámení</strong> a povol je.</li>
+            <li>Pořád nic? Zkontroluj <strong>Nastavení telefonu → Aplikace → tvůj prohlížeč → Oznámení</strong>, jestli nejsou vypnutá.</li>
+            @if (Info.InApp)
+            {
+                <li>Jsi v prohlížeči zabudovaném v jiné aplikaci (Facebook, Instagram…). Ten oznámení neumí, otevři stránku v <strong>Chrome</strong>.</li>
+            }
+            break;
+
+        case "windows":
+            <li>Klepni na <strong>Zapnout v tomto prohlížeči</strong> a v okně u adresy zvol <strong>Povolit</strong>.</li>
+            <li>Zablokováno? Klikni na <strong>ikonu vlevo od adresy</strong>, najdi <strong>Oznámení</strong> a přepni na Povolit.</li>
+            <li>Oznámení se ti nezobrazují? Ve Windows otevři <strong>Nastavení → Systém → Oznámení</strong> a zkontroluj, že jsou zapnutá pro tvůj prohlížeč a že není zapnutý režim Nerušit.</li>
+            <li>Oznámení ti přijdou, jen když je prohlížeč spuštěný (stačí na pozadí).</li>
+            break;
+
+        default:
+            <li>Klepni na <strong>Zapnout v tomto prohlížeči</strong> a v okně u adresy zvol <strong>Povolit</strong>.</li>
+            <li>Zablokováno? Klikni na <strong>ikonu vlevo od adresy</strong>, najdi <strong>Oznámení</strong> a přepni na Povolit.</li>
+            <li>Oznámení ti přijdou, jen když je prohlížeč spuštěný (stačí na pozadí).</li>
+            break;
+    }
+</ol>
+
+@code {
+    [Parameter, EditorRequired]
+    public PushInfo Info { get; set; } = default!;
+}

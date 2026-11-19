@@ -1,0 +1,222 @@
+@* Notifications: SMTP account for e-mails, status of browser push and SMS, and sending an announcement to players. *@
+@using System.Security.Claims
+@inject NotificationSettingsStore Settings
+@inject NotificationPreferences Preferences
+@inject EmailSender Email
+@inject Notifier Notifier
+@inject WebPushSender Push
+@inject GameSettingsStore Game
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<div class="ph-admin-status" aria-label="Aktuální stav">
+    <span class="ph-pill @(Settings.IsSmtpConfigured ? "on" : null)">E-mail: @(Settings.IsSmtpConfigured ? "nastavený" : "nenastavený")</span>
+    <span class="ph-pill @(Push.IsAvailable ? "on" : null)">Prohlížeč: @(Push.IsAvailable ? "připravený" : "bez klíčů")</span>
+    <span class="ph-pill">SMS: nepřipraveno</span>
+</div>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Kdo je jak k zastižení</h2>
+    @if (counts is { } c)
+    {
+        <p>
+            Z @c.Total @CzechText.Plural(c.Total, "účtu", "účtů", "účtů") má e-mail zapnutý @c.WithEmail,
+            v prohlížeči @c.WithBrowser a <strong>žádné oznámení nemá @c.WithNone</strong>.
+            Hráči bez oznámení vidí na každé stránce oranžový pruh, který je vede k nastavení.
+        </p>
+    }
+    else
+    {
+        <p>Načítám…</p>
+    }
+</section>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">E-mail (SMTP)</h2>
+    <p>Přes jaký účet se posílají e-maily. Zadej údaje od poskytovatele (Webglobe Mail, Brevo, Gmail…). Heslo se v databázi ukládá zašifrované a po uložení už se nezobrazuje.</p>
+    <div class="ph-admin-grid">
+        <MudTextField T="string" @bind-Value="host" Label="Server (host)" Variant="Variant.Outlined" Placeholder="smtp.example.com"
+                      MaxLength="NotificationSettings.MaxTextLength" />
+        <MudNumericField T="int" @bind-Value="port" Label="Port" Variant="Variant.Outlined" Min="1" Max="65535"
+                         HelperText="587 (STARTTLS), 465 (SSL)" />
+        <MudSelect T="SmtpSecurity" @bind-Value="security" Label="Zabezpečení" Variant="Variant.Outlined">
+            <MudSelectItem Value="SmtpSecurity.StartTls">STARTTLS (obvykle port 587)</MudSelectItem>
+            <MudSelectItem Value="SmtpSecurity.Ssl">SSL/TLS (obvykle port 465)</MudSelectItem>
+            <MudSelectItem Value="SmtpSecurity.None">Žádné (jen pro zkoušku)</MudSelectItem>
+        </MudSelect>
+        <MudTextField T="string" @bind-Value="user" Label="Uživatel" Variant="Variant.Outlined"
+                      HelperText="Prázdné = server nepotřebuje přihlášení" MaxLength="NotificationSettings.MaxTextLength"
+                      UserAttributes="@(new Dictionary<string, object?> { ["autocomplete"] = "off" })" />
+        <MudTextField T="string" @bind-Value="password" Label="Heslo" Variant="Variant.Outlined" InputType="InputType.Password"
+                      Placeholder="@(Settings.HasSmtpPassword ? "uložené, nech prázdné = beze změny" : "")"
+                      UserAttributes="@(new Dictionary<string, object?> { ["autocomplete"] = "new-password" })" />
+        <MudTextField T="string" @bind-Value="fromAddress" Label="Adresa odesílatele" Variant="Variant.Outlined" Placeholder="pandahunt@example.com"
+                      HelperText="Musí patřit k účtu nebo být u poskytovatele povolená." MaxLength="NotificationSettings.MaxTextLength" />
+        <MudTextField T="string" @bind-Value="fromName" Label="Jméno odesílatele" Variant="Variant.Outlined" Placeholder="PandaHunt"
+                      MaxLength="NotificationSettings.MaxTextLength" />
+    </div>
+    @if (Game.Current.QrBaseUrl is null)
+    {
+        <p class="ph-admin-muted">Odkazy v e-mailech potřebují adresu webu. Vyplň „Adresa v QR kódech“ v záložce Body na zemi, jinak e-maily odkaz mít nebudou.</p>
+    }
+    <div class="ph-admin-actions">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="busy" OnClick="SaveSmtpAsync">Uložit</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Email"
+                   Disabled="@(busy || !Settings.IsSmtpConfigured)" OnClick="SendTestMailAsync">Poslat zkušební e-mail sobě</MudButton>
+    </div>
+    @if (smtpMessage is not null)
+    {
+        <p class="@(smtpFailed ? "ph-admin-error" : null)" role="status">@smtpMessage</p>
+    }
+</section>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Prohlížeč a SMS</h2>
+    <p>
+        <strong>Prohlížeč:</strong> klíče pro push oznámení se vytvořily samy při prvním startu a nic dalšího nastavovat nemusíš.
+        Hráčům se nabízí návod podle zařízení (na iPhonu jde o přidání na plochu).
+        Oznámení přicházejí jen na HTTPS adrese (nebo na localhostu).
+    </p>
+    <p>
+        <strong>SMS:</strong> je připravená v kódu (<code>SmsChannel</code>), ale není zapojená, protože potřebuje placenou SMS bránu.
+        Hráči ji zatím nevidí jako volbu.
+    </p>
+</section>
+
+<section class="ph-admin-section">
+    <h2 class="ph-display">Poslat oznámení</h2>
+    <p>
+        Pošle se každému hráči přes to, co má zapnuté. Automaticky chodí jen tohle: otevření úkolu, bonusová akce
+        (chystá se i začala) a ztráta hvězdy.
+    </p>
+    <MudTextField T="string" @bind-Value="title" Label="Nadpis" Variant="Variant.Outlined" MaxLength="60" Immediate="true" />
+    <MudTextField T="string" @bind-Value="body" Label="Text" Variant="Variant.Outlined" Lines="3" MaxLength="300" Immediate="true" Class="mt-3" />
+    <MudTextField T="string" @bind-Value="url" Label="Kam odkazuje" Variant="Variant.Outlined" Class="mt-3 ph-admin-narrow"
+                  HelperText="Stránka na webu, např. /lov. Prázdné = /lov." MaxLength="100" />
+    <div class="ph-admin-actions">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Campaign"
+                   Disabled="@(busy || !CanSend)" OnClick="SendToAllAsync">Poslat všem hráčům</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Send"
+                   Disabled="@(busy || !CanSend)" OnClick="SendToMeAsync">Poslat jen sobě (zkouška)</MudButton>
+    </div>
+    @if (sendMessage is not null)
+    {
+        <p role="status">@sendMessage</p>
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private string? host, user, password, fromAddress, fromName;
+    private int port = 587;
+    private SmtpSecurity security = SmtpSecurity.StartTls;
+    private string? smtpMessage;
+    private bool smtpFailed;
+
+    private string title = "";
+    private string body = "";
+    private string? url;
+    private string? sendMessage;
+
+    private bool busy;
+    private (int Total, int WithEmail, int WithBrowser, int WithNone)? counts;
+
+    private bool CanSend => title.Trim().Length > 0 && body.Trim().Length > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var s = Settings.Current;
+        host = s.SmtpHost;
+        port = s.SmtpPort;
+        security = s.SmtpSecurity;
+        user = s.SmtpUser;
+        fromAddress = s.SmtpFromAddress;
+        fromName = s.SmtpFromName;
+        counts = await Preferences.CountAsync();
+    }
+
+    private async Task SaveSmtpAsync()
+    {
+        busy = true;
+        try
+        {
+            var errors = await Settings.SaveSmtpAsync(new SmtpEdit(host, port, security, user, password, fromAddress, fromName));
+            smtpFailed = errors.Count > 0;
+            smtpMessage = smtpFailed ? string.Join(" ", errors) : "Uloženo.";
+            if (!smtpFailed)
+                password = null;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task SendTestMailAsync()
+    {
+        busy = true;
+        try
+        {
+            var me = await CurrentEmailAsync();
+            if (me is null)
+            {
+                smtpFailed = true;
+                smtpMessage = "Tvůj účet nemá e-mail.";
+                return;
+            }
+
+            var error = await Email.SendAsync(me, "PandaHunt IV: zkušební e-mail", "Tohle je zkušební e-mail z administrace PandaHunt IV. Odesílání funguje.");
+            smtpFailed = error is not null;
+            smtpMessage = error ?? $"Zkušební e-mail odeslán na {me}.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task SendToMeAsync() => await SendAsync(toAll: false);
+
+    private async Task SendToAllAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Poslat všem hráčům?", $"Oznámení „{title.Trim()}“ dostane každý hráč. Vrátit to nejde.",
+            yesText: "Poslat", cancelText: "Zrušit");
+        if (confirmed == true)
+            await SendAsync(toAll: true);
+    }
+
+    private async Task SendAsync(bool toAll)
+    {
+        busy = true;
+        try
+        {
+            var path = string.IsNullOrWhiteSpace(url) ? "/lov" : url.Trim();
+            if (!path.StartsWith('/') || path.StartsWith("//"))
+            {
+                sendMessage = "Odkaz musí být stránka na tomhle webu a začínat lomítkem, např. /lov.";
+                return;
+            }
+
+            var message = new NotificationMessage(title.Trim(), body.Trim(), path, "admin");
+            var result = toAll
+                ? await Notifier.NotifyAllPlayersAsync(message)
+                : await Notifier.NotifyUserAsync((await AuthenticationState).User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "", message);
+            sendMessage = result.Summary;
+            counts = await Preferences.CountAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Odeslání se nepovedlo: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task<string?> CurrentEmailAsync() =>
+        (await AuthenticationState).User.FindFirstValue(ClaimTypes.Email) is { Length: > 0 } email ? email : null;
+}

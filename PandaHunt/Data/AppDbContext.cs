@@ -27,6 +27,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 
     public DbSet<BonusEventClaim> BonusEventClaims => Set<BonusEventClaim>();
 
+    public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
+
+    public DbSet<WebPushDevice> WebPushDevices => Set<WebPushDevice>();
+
+    public DbSet<SentNotification> SentNotifications => Set<SentNotification>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -37,6 +43,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             settings.Property(s => s.Phase0Code).HasMaxLength(Data.GameSettings.MaxCodeLength);
             settings.Property(s => s.HuntIntro).HasMaxLength(Data.GameSettings.MaxHuntIntroLength);
             settings.Property(s => s.QrBaseUrl).HasMaxLength(Data.GameSettings.MaxQrBaseUrlLength);
+        });
+
+        builder.Entity<NotificationSettings>(settings =>
+        {
+            settings.Property(s => s.Id).ValueGeneratedNever();
+            settings.Property(s => s.SmtpHost).HasMaxLength(Data.NotificationSettings.MaxTextLength);
+            settings.Property(s => s.SmtpUser).HasMaxLength(Data.NotificationSettings.MaxTextLength);
+            settings.Property(s => s.SmtpFromAddress).HasMaxLength(Data.NotificationSettings.MaxTextLength);
+            settings.Property(s => s.SmtpFromName).HasMaxLength(Data.NotificationSettings.MaxTextLength);
+        });
+
+        builder.Entity<WebPushDevice>(device =>
+        {
+            device.Property(d => d.Endpoint).HasMaxLength(WebPushDevice.MaxEndpointLength);
+            device.Property(d => d.P256dh).HasMaxLength(WebPushDevice.MaxKeyLength);
+            device.Property(d => d.Auth).HasMaxLength(WebPushDevice.MaxKeyLength);
+            device.Property(d => d.Label).HasMaxLength(WebPushDevice.MaxLabelLength);
+            device.HasIndex(d => d.Endpoint).IsUnique();
+            device.HasOne(d => d.User)
+                .WithMany(u => u.PushDevices)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<SentNotification>(sent =>
+        {
+            sent.HasKey(s => s.Key);
+            sent.Property(s => s.Key).HasMaxLength(SentNotification.MaxKeyLength);
         });
 
         builder.Entity<Player>(player =>

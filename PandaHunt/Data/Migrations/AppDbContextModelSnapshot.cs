@@ -178,6 +178,12 @@ namespace PandaHunt.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("NotifyByEmail")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("NotifyBySms")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("TEXT");
 
@@ -443,6 +449,47 @@ namespace PandaHunt.Data.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.NotificationSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SmtpFromAddress")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SmtpFromName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SmtpHost")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SmtpPasswordProtected")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SmtpPort")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SmtpSecurity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SmtpUser")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VapidPrivateKeyProtected")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VapidPublicKey")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NotificationSettings");
+                });
+
             modelBuilder.Entity("PandaHunt.Data.Player", b =>
                 {
                     b.Property<string>("Id")
@@ -495,6 +542,20 @@ namespace PandaHunt.Data.Migrations
                     b.ToTable("PointEntries");
                 });
 
+            modelBuilder.Entity("PandaHunt.Data.SentNotification", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("SentNotifications");
+                });
+
             modelBuilder.Entity("PandaHunt.Data.TaskCompletion", b =>
                 {
                     b.Property<int>("TaskId")
@@ -533,6 +594,49 @@ namespace PandaHunt.Data.Migrations
                     b.HasIndex("PlayerId");
 
                     b.ToTable("TaskStars");
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.WebPushDevice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("WebPushDevices");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -693,6 +797,22 @@ namespace PandaHunt.Data.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.WebPushDevice", b =>
+                {
+                    b.HasOne("PandaHunt.Data.ApplicationUser", "User")
+                        .WithMany("PushDevices")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PandaHunt.Data.ApplicationUser", b =>
+                {
+                    b.Navigation("PushDevices");
                 });
 
             modelBuilder.Entity("PandaHunt.Data.Player", b =>
